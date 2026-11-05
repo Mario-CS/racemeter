@@ -1,0 +1,9 @@
+{
+  "name": "racemeter",
+  "private": true,
+  "type": "module",
+  "description": "App web para medir inclinación, fuerzas G y 0-100 en moto",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  }
+}
