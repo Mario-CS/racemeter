@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RaceMeter">
+<meta name="theme-color" content="#0b0f16">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>RaceMeter</title>
+<style>
+:root{--bg:#0b0f16;--card:#161c27;--card2:#1d2432;--line:rgba(255,255,255,.07);--txt:#f2f5f9;--mut:#8b95a7;--dim:#5b6476;--gold:#f5b62a;--gold2:#ffd36b;--grn:#3ddc84;--red:#ff4d5e;--blu:#4aa3ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none;overflow:hidden}
+body{display:flex;flex-direction:column;position:relative;height:100vh;height:100dvh;height:var(--app-h,100dvh);padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);background:radial-gradient(120% 60% at 50% 18%,#151b28 0%,var(--bg) 60%)}
+[hidden]{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+.gold{color:var(--gold)}
+.cap{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.center{text-align:center}
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px 4px;flex:none}
+.bike{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:16px;padding:9px 12px;font:700 16px/1 inherit;max-width:62%}
+.bike span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bike svg{flex:none}
+.status{display:flex;align-items:center;gap:8px;border-radius:99px;padding:7px 13px;font:800 12px/1 inherit;letter-spacing:.12em;border:1.5px solid currentColor;background:transparent;color:var(--grn)}
+.status.ok{color:var(--grn);background:rgba(61,220,132,.08)}
+.status.warn{color:var(--gold);background:rgba(245,182,42,.08)}
+.status.bad{color:var(--red);background:rgba(255,77,94,.08)}
+.status .rec{width:8px;height:8px;border-radius:50%;background:var(--red);animation:bl 1s infinite}
+.status .rec[hidden]{display:none}
+@keyframes bl{50%{opacity:.15}}
+/* layout */
+main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:96px}
+.view{display:none;padding:6px 16px 16px;gap:14px;flex-direction:column}
+.view.on{display:flex}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px 16px}
+canvas{display:block;width:100%}
+.sq{aspect-ratio:1/1}
+/* track / lean */
+.lean-head{text-align:center;margin-top:4px}
+.lean-big{font-size:64px;font-weight:800;line-height:1;letter-spacing:-.02em;margin-top:4px}
+.lean-big sup{font-size:.36em;color:var(--gold);vertical-align:top;position:relative;top:.35em;margin-left:2px}
+.gauge-wrap{position:relative}
+.gauge{aspect-ratio:2/1.05}
+.sides{display:flex;justify-content:space-between;margin-top:-58px;position:relative;pointer-events:none}
+.side{display:flex;flex-direction:column;gap:3px;min-width:84px}
+.side.r{align-items:flex-end;text-align:right}
+.side .cap{letter-spacing:.12em;font-size:12px}
+.side.on .cap{color:var(--gold)}
+.sv{font-size:34px;font-weight:800;line-height:1}
+.sv sup{font-size:.4em;vertical-align:top;color:var(--mut)}
+.side.on .sv sup{color:var(--gold)}
+.pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px 9px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--mut)}
+.pill b{color:var(--gold);font-weight:800;letter-spacing:0;font-size:13px;margin-left:3px}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:13px 6px 11px;text-align:center;min-width:0}
+.stat b{display:block;font-size:21px;font-weight:800;white-space:nowrap}
+.stat span{display:block;font-size:12.5px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* speed */
+.spdwrap{position:relative}
+.spdgauge{aspect-ratio:1/0.82}
+/* buttons */
+.btn{display:block;width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:16px;padding:14px;font:700 15px/1.2 inherit;text-align:center}
+.btn:active{filter:brightness(1.25)}
+.btn.pri{background:var(--gold);border-color:var(--gold);color:#16120a}
+.btn.ghost{background:transparent;border:1.5px dashed rgba(245,182,42,.5);color:var(--gold);margin-top:12px}
+.btn.sm{padding:10px;font-size:13px;border-radius:13px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+/* nav */
+nav{position:absolute;left:12px;right:12px;bottom:calc(max(env(safe-area-inset-bottom),12px) + 6px);display:flex;gap:4px;background:rgba(24,30,42,.88);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.08);border-radius:26px;padding:6px;z-index:10;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+nav button{flex:1;background:none;border:0;color:#c9d0db;padding:8px 0 7px;border-radius:20px;font:700 11.5px/1 inherit;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+nav button svg{width:26px;height:26px}
+nav button.on{background:rgba(245,182,42,.16);color:var(--gold)}
+/* perf */
+.perfstate{text-align:center;font-weight:800;letter-spacing:.12em;font-size:12px;padding:10px;border-radius:99px;border:1.5px solid var(--line);color:var(--mut)}
+.perfstate.armed{border-color:rgba(61,220,132,.6);color:var(--grn);background:rgba(61,220,132,.08)}
+.perfstate.run{border-color:rgba(245,182,42,.6);color:var(--gold);background:rgba(245,182,42,.08)}
+.timer{text-align:center;font-size:76px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.timer.flash{animation:fl .9s 2}
+@keyframes fl{50%{color:var(--gold)}}
+table{width:100%;border-collapse:collapse;font-size:15px;margin-top:6px}
+th{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);text-align:right;font-weight:700;padding:4px 6px}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+td:first-child{font-weight:700;color:#cfd6e0}
+td.best{color:var(--gold);font-weight:800}
+td .sub{display:block;font-size:11px;color:var(--mut);font-weight:600}
+.hist div{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.hist div:first-child{border-top:0}
+.tag{font-size:10px;font-weight:800;color:var(--gold);margin-left:4px}
+.note{font-size:12.5px;color:var(--mut);line-height:1.5;margin:0}
+/* settings */
+.setgroup{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:6px 16px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0;border-top:1px solid var(--line);font-size:15px}
+.setrow:first-child{border-top:0}
+.setrow .v{color:var(--mut)}
+.setrow.link{cursor:pointer}
+.setrow.link:after{content:"›";color:var(--dim);font-size:22px;line-height:1}
+.sechead{margin:6px 4px -4px}
+.seg{display:flex;background:var(--card2);border-radius:12px;padding:3px;gap:3px}
+.seg button{background:none;border:0;color:var(--mut);padding:7px 10px;border-radius:9px;font:700 13px inherit}
+.seg button.on{background:var(--gold);color:#16120a}
+.sw{appearance:none;-webkit-appearance:none;width:50px;height:30px;border-radius:99px;background:#2a3242;position:relative;flex:none;margin:0;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
+.sw:checked{background:var(--grn)}.sw:checked:after{left:23px}
+.diag{font:11px/1.6 ui-monospace,Menlo,monospace;color:var(--mut);padding:4px}
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(6,8,12,.94);z-index:20;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 22px calc(env(safe-area-inset-bottom) + 16px);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.overlay[hidden]{display:none}
+.box{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px}
+.box h1{margin:0 0 4px;font-size:34px;font-weight:800;letter-spacing:.02em}.box h1 b{color:var(--gold)}
+.box h2{margin:0;font-size:24px}
+.box p{margin:0;color:var(--mut);font-size:14.5px;line-height:1.5}
+.logo{width:84px;height:84px;border-radius:22px;margin-bottom:6px}
+.warnbox{background:rgba(255,77,94,.1);border:1px solid rgba(255,77,94,.45);color:#ffb5bd;border-radius:14px;padding:11px;font-size:13px}
+.ring{width:130px;height:130px;margin:10px auto}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 104px);transform:translateX(-50%) translateY(16px);background:#232b3a;border:1px solid rgba(255,255,255,.1);color:var(--txt);padding:11px 18px;border-radius:16px;font-size:14px;font-weight:700;opacity:0;transition:.25s;z-index:40;pointer-events:none;max-width:88vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast.on{opacity:1;transform:translateX(-50%)}
+.banner{background:rgba(245,182,42,.08);border:1px solid rgba(245,182,42,.4);color:#ffe2a3;border-radius:16px;padding:11px 14px;font-size:13px;text-align:center}
+.banner[hidden]{display:none}
+@media (max-width:360px){.lean-big{font-size:54px}.stat b{font-size:18px}nav button{font-size:10px}}
+@media (orientation:landscape) and (max-height:560px){
+  header{padding-top:4px}
+  main{padding-bottom:76px}
+  nav{left:20%;right:20%}
+  nav button{flex-direction:row;justify-content:center;padding:7px 0}
+  nav button svg{width:20px;height:20px}
+  #v-track.on{display:grid;grid-template-columns:1.2fr 1fr;align-items:center;column-gap:16px}
+  #v-track .lean-head{grid-column:1;grid-row:1}#v-track .gauge-wrap{grid-column:1;grid-row:2}
+  #v-track .stats3{grid-column:2;grid-row:1/3;grid-template-columns:1fr}
+  .lean-big{font-size:48px}
+  #v-g.on,#v-perf.on,#v-speed.on{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+  #v-g .card:first-child{grid-row:span 4}
+  #v-perf .perfstate,#v-perf .timer,#v-perf .perfsub{grid-column:1/-1}
+  .sq{height:70vh;width:auto;margin:0 auto}
+}
+</style>
+</head>
+<body>
+<header>
+  <button class="bike" data-act="renameBike">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f5b62a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.5"/><circle cx="18.5" cy="16" r="3.5"/><path d="M5.5 16l4-6h5l4 6M9.5 10l-1.5-3H5.5M14.5 10l1.5-3h2.5"/></svg>
+    <span id="bikeName">Mi moto</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b95a7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <button class="status bad" id="status" data-act="goSettings"><span class="rec" id="recDot" hidden></span><span id="statusT">INICIO</span><span>···</span></button>
+</header>
+
+<main>
+  <!-- PISTA -->
+  <section class="view on" id="v-track">
+    <div class="lean-head">
+      <div class="cap">Ángulo de inclinación</div>
+      <div class="lean-big num"><span id="tLean">0</span><sup>°</sup></div>
+    </div>
+    <div class="gauge-wrap">
+      <canvas id="cLean" class="gauge"></canvas>
+      <div class="sides">
+        <div class="side l" id="sideLBox"><div class="cap">Izq</div><div class="sv num"><span id="sideL">0</span><sup>°</sup></div><div><span class="pill">MÁX<b id="maxL">0°</b></span></div></div>
+        <div class="side r" id="sideRBox"><div class="cap">Der</div><div class="sv num"><span id="sideR">0</span><sup>°</sup></div><div><span class="pill">MÁX<b id="maxR">0°</b></span></div></div>
+      </div>
+    </div>
+    <div class="stats3">
+      <div class="stat"><b class="num" id="tSpd">0</b><span>KM/H</span></div>
+      <div class="stat"><b class="num" id="tLat">+0.00G</b><span>Lateral</span></div>
+      <div class="stat"><b class="num gold" id="tPeak">0.00G</b><span>Pico lat.</span></div>
+    </div>
+    <div class="banner" id="calBanner" hidden>Sin calibrar: fija el móvil en la moto y ve a <b>Ajustes › Calibrar</b>.</div>
+  </section>
+
+  <!-- VELOCIDAD -->
+  <section class="view" id="v-speed">
+    <div class="card spdwrap"><canvas id="cSpd" class="spdgauge"></canvas></div>
+    <div class="stats3">
+      <div class="stat"><b class="num gold" id="sMax">0</b><span>Máx km/h</span></div>
+      <div class="stat"><b class="num" id="sAcc">+0.00G</b><span>Longitudinal</span></div>
+      <div class="stat"><b class="num" id="sDist">0.0</b><span>Km sesión</span></div>
+    </div>
+    <div class="stats3">
+      <div class="stat"><b class="num" id="s0100">—</b><span>0-100 último</span></div>
+      <div class="stat"><b class="num gold" id="s0100b">—</b><span>0-100 mejor</span></div>
+      <div class="stat"><b class="num gold" id="s0200b">—</b><span>0-200 mejor</span></div>
+    </div>
+  </section>
+
+  <!-- FUERZA G -->
+  <section class="view" id="v-g">
+    <div class="card"><canvas id="cG" class="sq"></canvas></div>
+    <div class="stats3">
+      <div class="stat"><b class="num" id="gLon">+0.00</b><span>Longitudinal</span></div>
+      <div class="stat"><b class="num" id="gLat">0.00</b><span>Lateral</span></div>
+      <div class="stat"><b class="num gold" id="gTot">0.00</b><span>Total</span></div>
+    </div>
+    <div class="card">
+      <div class="cap">Máximos</div>
+      <table>
+        <tr><td>Aceleración</td><td id="gMA">0.00 G</td><td>Frenada</td><td id="gMB">0.00 G</td></tr>
+        <tr><td>Izquierda</td><td id="gML">0.00 G</td><td>Derecha</td><td id="gMR">0.00 G</td></tr>
+        <tr><td>Caballito</td><td id="gWh">0°</td><td>Stoppie</td><td id="gSt">0°</td></tr>
+      </table>
+    </div>
+    <div class="row"><button class="btn sm" data-act="resetMax">Reiniciar máximos</button></div>
+  </section>
+
+  <!-- TIEMPOS -->
+  <section class="view" id="v-perf">
+    <div class="perfstate" id="perfState">ESPERANDO GPS…</div>
+    <div class="timer num" id="perfTimer">0.00</div>
+    <div class="center perfsub" style="color:var(--mut)"><span id="perfSpd" class="num">0</span> km/h · <span id="perfDist" class="num">0</span> m</div>
+    <div class="card"><div class="cap">Salida parada</div><div id="perfRun"></div></div>
+    <div class="card"><div class="cap">Recuperaciones y frenada</div><div id="perfRoll"></div></div>
+    <div class="card"><div class="cap">Historial</div><div class="hist" id="perfHist"></div></div>
+    <p class="note">Detén la moto hasta que ponga <b>LISTO</b> y acelera: el crono arranca solo. Recuperaciones y frenada 100-0 se miden automáticamente. Úsalo solo en circuito o zona cerrada.</p>
+  </section>
+
+  <!-- AJUSTES -->
+  <section class="view" id="v-set">
+    <div class="cap sechead">Moto</div>
+    <div class="setgroup">
+      <div class="setrow link" data-act="renameBike"><span>Nombre</span><span class="v" id="setBike">Mi moto</span></div>
+      <div class="setrow"><span>Escala G-meter</span><div class="seg" id="segScale"><button data-s="1">1.0</button><button data-s="1.5">1.5</button><button data-s="2">2.0</button></div></div>
+    </div>
+    <div class="cap sechead">Montaje</div>
+    <div class="setgroup">
+      <div class="setrow link" data-act="calib"><span>Calibrar (moto recta y quieta)</span></div>
+      <div class="setrow link" data-act="fwd"><span>Detectar dirección de marcha</span></div>
+      <div class="setrow"><span>Invertir adelante / atrás</span><input type="checkbox" class="sw" id="tFwd"></div>
+      <div class="setrow"><span>Invertir izquierda / derecha</span><input type="checkbox" class="sw" id="tLat"></div>
+    </div>
+    <p class="note" style="padding:0 4px">Fija el móvil en el soporte (vertical, horizontal o tumbado con la parte de arriba hacia delante). Con la moto <b>recta, quieta y en llano</b> (en el caballete central o con alguien sujetándola), pulsa Calibrar.</p>
+    <div class="cap sechead">Sesión</div>
+    <div class="setgroup">
+      <div class="setrow"><span>Pitido al medir</span><input type="checkbox" class="sw" id="tSnd"></div>
+      <div class="setrow link" data-act="rec"><span id="recLbl">Iniciar grabación</span></div>
+      <div class="setrow link" data-act="export"><span>Exportar CSV</span><span class="v" id="expN">0 filas</span></div>
+      <div class="setrow link" data-act="resetMax"><span>Reiniciar máximos</span></div>
+      <div class="setrow link" data-act="clearHist"><span>Borrar historial y récords</span></div>
+      <div class="setrow link" data-act="demo"><span id="demoLbl">Activar modo demo</span></div>
+    </div>
+    <div class="cap sechead">Diagnóstico</div>
+    <div class="setgroup"><div class="diag" id="diag"></div><div class="setrow link" data-act="retryGps"><span>Reintentar GPS</span></div><div class="setrow link" data-act="resetSigns"><span>Repetir autodetección de sensores</span></div></div>
+  </section>
+</main>
+
+<nav id="nav">
+  <button data-v="speed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3.5 17a8.5 8.5 0 1 1 17 0"/><path d="M12 17l4.5-5.5"/><circle cx="12" cy="17" r="1.4" fill="currentColor"/></svg>Velocidad</button>
+  <button data-v="track" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c-2-2-1-5 1.5-5.5S9 11 8 8.5 9 3.5 12 4.5s2 3.5 4.5 3 4.5 1.5 3.5 4-3.5 2-3.5 4.5 1.5 4-1.5 4.5S12 18 10 19.5 6.5 20.5 5 19z"/></svg>Pista</button>
+  <button data-v="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18" opacity=".4"/><circle cx="15.5" cy="9" r="2.2" fill="currentColor"/></svg>Fuerza G</button>
+  <button data-v="perf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 2.5h4M18.5 6.5l-1.3 1.3"/></svg>Tiempos</button>
+  <button data-v="set"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.3 2.5h4l.3-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>Ajustes</button>
+</nav>
+
+<!-- INICIO -->
+<div class="overlay" id="start">
+  <div class="box">
+    <img class="logo" src="icon-192.png" alt="">
+    <h1>RACE<b>METER</b></h1>
+    <p>Ángulo de inclinación, fuerzas G, 0-100 y frenadas para tu moto.</p>
+    <div class="warnbox" id="httpsWarn" hidden>Esta página no se está sirviendo por <b>HTTPS</b>: el iPhone no dará acceso a los sensores ni al GPS.</div>
+    <button class="btn pri" id="btnStart">Empezar</button>
+    <button class="btn" id="btnDemo">Ver demo (circuito simulado)</button>
+    <p class="note">Acepta el acceso a <b>Movimiento y orientación</b> y a la <b>Ubicación</b> (activa "Ubicación exacta").</p>
+  </div>
+</div>
+
+<!-- CALIBRACIÓN -->
+<div class="overlay" id="calibOv" hidden>
+  <div class="box center">
+    <h2>Calibrando…</h2>
+    <svg class="ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="#1d2432" stroke-width="9"/><circle id="calibArc" cx="60" cy="60" r="52" fill="none" stroke="#f5b62a" stroke-width="9" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)"/></svg>
+    <p id="calibMsg">Mantén la moto recta y quieta</p>
+    <button class="btn" data-act="cancelCalib">Cancelar</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(()=>{
+'use strict';
+/* En la app instalada (pantalla de inicio) algunas versiones de iOS dan una altura de pantalla
+   más corta de la real y el menú inferior queda flotando a media pantalla. Se corrige midiendo. */
+function fixHeight(){
+  let h=window.innerHeight;
+  if(navigator.standalone){
+    const land=window.innerWidth>window.innerHeight;
+    const full=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
+    if(full>h&&full-h<160)h=full;
+  }
+  document.documentElement.style.setProperty('--app-h',h+'px');
+}
+fixHeight();
+addEventListener('resize',fixHeight);addEventListener('orientationchange',()=>setTimeout(fixHeight,300));
+/* ================= utilidades ================= */
+const G=9.80665,D2R=Math.PI/180,R2D=180/Math.PI;
+const $=id=>document.getElementById(id);
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const len=a=>Math.hypot(a[0],a[1],a[2]);
+const scl=(a,k)=>[a[0]*k,a[1]*k,a[2]*k];
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const nrm=a=>{const l=len(a)||1;return[a[0]/l,a[1]/l,a[2]/l]};
+const perp=(a,u)=>sub(a,scl(u,dot(a,u)));
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const now=()=>performance.now()/1000;
+const ix=(t0,v0,t1,v1,x)=>v1===v0?t1:t0+(t1-t0)*(x-v0)/(v1-v0);
+const store={
+  get(k,d){try{const v=localStorage.getItem('rm_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('rm_'+k,JSON.stringify(v))}catch(e){}}
+};
+function hav(a1,o1,a2,o2){const r=6371000,p=(a2-a1)*D2R,l=(o2-o1)*D2R,s=Math.sin(p/2)**2+Math.cos(a1*D2R)*Math.cos(a2*D2R)*Math.sin(l/2)**2;return 2*r*Math.asin(Math.sqrt(s));}
+
+/* ================= estado persistente ================= */
+const settings=Object.assign({bike:'Mi moto',flipLat:false,flipFwd:false,gScale:1.5,sound:true},store.get('settings',{}));
+delete settings.mode;
+const saveSettings=()=>store.set('settings',settings);
+let cal=store.get('cal',null);              // {graw:[x,y,z], fwdraw:[x,y,z]|null}
+// Autodetección de convenciones de los sensores (signo del acelerómetro y mapeo del giroscopio)
+const GMAPS=[[1,2,0],[0,1,2]];              // índices de [alpha,beta,gamma] para ejes x,y,z
+const GMAPN=['spec','alt'];
+const defSigns=()=>({acc:1,accConf:0,gmap:0,gsign:1,gconf:[0,0],gn:0,gdone:false});
+let signs=Object.assign(defSigns(),store.get('signs',{}));
+const saveSigns=()=>{if(!demo)store.set('signs',signs)};
+let axes=null;
+function computeAxes(){
+  if(!cal){axes=null;return;}
+  const g=scl(cal.graw,signs.acc);
+  const U=nrm(g);
+  let F=null;
+  if(cal.fwdraw){const f=perp(scl(cal.fwdraw,signs.acc),U);if(len(f)>0.2)F=nrm(f);}
+  if(!F){let f=perp([0,0,-1],U);if(len(f)<0.45)f=perp([0,1,0],U);F=nrm(f);}
+  if(settings.flipFwd)F=scl(F,-1);
+  axes={U,F,L:cross(U,F),g};
+}
+computeAxes();
+
+/* ================= estado en vivo ================= */
+const zeroMax=()=>({acc:0,brk:0,l:0,r:0,leanL:0,leanR:0,up:0,dn:0,spd:0});
+const st={v:0,vGps:null,gpsAcc:null,gpsT:-99,la:null,lo:null,lastMotion:-99,hz:0,dist:0,
+  ax:0,ay:0,axS:0,ayS:0,roll:0,pitch:0,lean:0,pitchD:0,stillT:0,max:Object.assign(zeroMax(),store.get('max',{}))};
+const trail=[];let trailN=0;
+const vHist=[];
+let demo=false,started=false;
+const gpsFix=t=>t-st.gpsT<4;                                   // hay posición reciente (aunque sea imprecisa)
+const gpsOk=t=>gpsFix(t)&&st.gpsAcc!=null&&st.gpsAcc<50;       // suficiente para medir tiempos
+const sensorsLive=t=>!!axes&&t-st.lastMotion<0.5;
+function vAt(t){for(let i=vHist.length-1;i>=0;i--)if(vHist[i][0]<=t)return vHist[i][1];return vHist.length?vHist[0][1]:st.v;}
+
+/* ================= sensores de movimiento ================= */
+let lastT=0,accLp=null,prevU=null,hzN=0,hzT=0,orient=null;
+function onOrient(e){if(demo||e.beta==null)return;orient={b:e.beta*D2R,g:e.gamma*D2R,t:now()};}
+function onMotion(e){
+  if(demo)return;
+  const a=e.accelerationIncludingGravity;if(!a||a.x==null)return;
+  const r=e.rotationRate;
+  const wr=(r&&r.alpha!=null)?[r.alpha*D2R,r.beta*D2R,r.gamma*D2R]:null;
+  step([a.x,a.y,a.z],wr,now());
+}
+function detectSigns(raw,wr,dt,t){
+  if(demo)return;
+  const m=len(raw);
+  // 1) signo del acelerómetro: comparar con el "arriba" que da deviceorientation
+  if(orient&&t-orient.t<0.5&&Math.abs(signs.accConf)<300&&Math.abs(m-G)<0.8&&(!wr||len(wr)<0.3)){
+    const up=[-Math.sin(orient.g)*Math.cos(orient.b),Math.sin(orient.b),Math.cos(orient.g)*Math.cos(orient.b)];
+    const d=dot(nrm(raw),up);
+    if(Math.abs(d)>0.8){
+      signs.accConf+=Math.sign(d);
+      const ns=signs.accConf>=0?1:-1;
+      if(ns!==signs.acc){signs.acc=ns;computeAxes();}
+      if(Math.abs(signs.accConf)>=300)saveSigns();
+    }
+  }
+  // 2) mapeo y signo del giroscopio: du/dt = u × ω para la gravedad vista desde el móvil
+  if(wr&&!signs.gdone){
+    const u=nrm(accLp);
+    if(prevU){
+      const du=scl(sub(u,prevU),1/dt);
+      const wl=len(wr);
+      if(wl>0.6&&Math.abs(m-G)<2.5){
+        GMAPS.forEach((mp,k)=>{const w=[wr[mp[0]],wr[mp[1]],wr[mp[2]]];signs.gconf[k]+=clamp(dot(du,cross(u,w))/(wl*wl),-1.5,1.5);});
+        signs.gn++;
+        const a0=Math.abs(signs.gconf[0]),a1=Math.abs(signs.gconf[1]);
+        if(signs.gn>=120){
+          const best=a1>a0*1.4?1:0;
+          signs.gmap=best;signs.gsign=signs.gconf[best]>=0?1:-1;
+          if(signs.gn>=600){signs.gdone=true;saveSigns();}
+        }
+      }
+    }
+    prevU=u;
+  }
+}
+function step(raw,wr,t){
+  let dt=lastT?t-lastT:0.016;lastT=t;if(!(dt>0)||dt>0.25)dt=0.016;
+  st.lastMotion=t;hzN++;if(t-hzT>=1){st.hz=hzN/(t-hzT);hzN=0;hzT=t;}
+  accLp=accLp?add(accLp,scl(sub(raw,accLp),0.25)):raw.slice();
+  detectSigns(raw,wr,dt,t);
+  const mp=GMAPS[signs.gmap];
+  const w=wr?scl([wr[mp[0]],wr[mp[1]],wr[mp[2]]],signs.gsign):null;
+  if(calib.active)calibStep(raw,w,t);
+  if(!axes){
+    // nunca calibrado: se calibra solo en cuanto el móvil esté quieto 1,5 s
+    if(!demo&&!calib.active&&(!w||len(w)<0.15)&&Math.abs(len(raw)-G)<0.5){
+      st.autoT=(st.autoT||0)+dt;
+      if(st.autoT>1.5){cal={graw:accLp.slice(),fwdraw:null,auto:true};store.set('cal',cal);computeAxes();st.roll=st.pitch=0;
+        toast('Calibrado automático. Para más precisión, calibra con el móvil ya puesto en la moto (Ajustes).',5000);}
+    }else st.autoT=0;
+    return;
+  }
+  const {U,F,L,g}=axes;
+  const acc=scl(raw,signs.acc);
+  const lin=sub(acc,g);                       // aceleración de la moto (m/s²) en ejes del móvil
+  if(fwdDet.active)fwdStep(lin,U,dt,t);
+  const lonG=dot(lin,F)/G;
+  const u=nrm(scl(accLp,signs.acc));          // "arriba" medido
+  const rollA=Math.atan2(dot(u,L),dot(u,U));
+  const pitchA=Math.atan2(dot(u,F),dot(u,U));
+  const hl=Math.hypot(dot(lin,F),dot(lin,L))/G;
+  const v=st.v;
+  let rr=0,pr=0,yr=0;
+  if(w){
+    // velocidades angulares proyectadas a ejes "nivelados" según la inclinación actual
+    const wU=dot(w,U),wL=dot(w,L),c=Math.cos(st.roll),s=Math.sin(st.roll);
+    rr=dot(w,F);
+    pr=-wL*c+wU*s;          // cabeceo (morro arriba +)
+    yr=-(wU*c+wL*s);        // guiñada respecto a la vertical real (derecha +)
+    // Inclinación: giroscopio + referencia. En marcha la referencia es la física de la curva
+    // (tan(lean) = v·ω/g); parado, el acelerómetro. Con aceleraciones, solo giroscopio.
+    st.stillT=(v<0.3&&len(w)<0.08&&Math.abs(len(acc)-G)<0.3)?st.stillT+dt:0;
+    const quiet=st.stillT>0.6||(hl<0.05&&Math.abs(len(acc)-G)<0.3);
+    let ref=rollA,k=quiet?Math.exp(-dt/0.8):1;
+    if(v>4){ref=clamp(Math.atan(v*yr/G),-1.25,1.25);k=Math.exp(-dt/0.8);}
+    st.roll=k*(st.roll+rr*dt)+(1-k)*ref;
+    const kp=quiet?Math.exp(-dt/0.8):1;
+    st.pitch=kp*(st.pitch+pr*dt)+(1-kp)*pitchA;
+  }else{st.roll=rollA;st.pitch=pitchA;}
+  // En marcha (con GPS) la G lateral real de una moto sale de velocidad × giro, porque al tumbar
+  // el acelerómetro no la ve. Parado o sin GPS se usa el acelerómetro directamente.
+  let latG=(w&&v>2&&gpsOk(t))?v*yr/G:-dot(lin,L)/G;
+  const ls=settings.flipLat?-1:1;
+  latG*=ls;
+  const a=1-Math.exp(-dt/0.12);
+  st.ax=lonG;st.ay=latG;
+  st.axS+=(lonG-st.axS)*a;st.ayS+=(latG-st.ayS)*a;
+  st.lean=st.roll*R2D*ls;st.pitchD=st.pitch*R2D;
+  // velocidad: integra el acelerómetro entre puntos GPS
+  const fused=gpsOk(t);
+  if(fused){st.v=Math.max(0,st.v+lonG*G*dt);st.dist+=st.v*dt;}
+  vHist.push([t,st.v]);while(vHist.length&&vHist[0][0]<t-3)vHist.shift();
+  updMax(t);
+  if(++trailN%2===0){trail.push([st.ayS,st.axS]);if(trail.length>90)trail.shift();}
+  recTick(t);
+  if(fused)tickPerf(t,st.v,st.axS,dt);
+}
+function updMax(t){
+  const M=st.max;
+  if(st.axS>M.acc)M.acc=st.axS;if(-st.axS>M.brk)M.brk=-st.axS;
+  if(st.ayS>M.r)M.r=st.ayS;if(-st.ayS>M.l)M.l=-st.ayS;
+  if(st.lean>M.leanR)M.leanR=st.lean;if(-st.lean>M.leanL)M.leanL=-st.lean;
+  if(st.v>3&&gpsOk(t)){if(st.pitchD>M.up)M.up=Math.min(90,st.pitchD);if(-st.pitchD>M.dn)M.dn=Math.min(90,-st.pitchD);}  // caballito/stoppie solo en marcha
+  const k=st.v*3.6;
+  if(gpsOk(t)&&k>M.spd)M.spd=k;
+}
+
+/* ================= GPS ================= */
+let gpsWatch=null,prevFix=null;
+function startGps(){
+  if(gpsWatch!=null)return;
+  if(!navigator.geolocation){st.gpsErr='Este navegador no tiene GPS';return;}
+  if(!window.isSecureContext){st.gpsErr='La página no va por HTTPS: el iPhone bloquea el GPS';toast(st.gpsErr,6000);return;}
+  gpsWatch=navigator.geolocation.watchPosition(p=>{st.gpsErr=null;if(!demo)gpsIn(p)},gpsError,{enableHighAccuracy:true,maximumAge:0});
+}
+function gpsError(err){
+  const msg={1:'Ubicación denegada. Ve a Ajustes › Privacidad y seguridad › Localización: actívala, y en "Sitios web de Safari" (o en la app RaceMeter) elige "Al usar la app" y "Ubicación exacta". Luego cierra y abre la app.',
+    2:'El iPhone no consigue posición GPS. Sal al exterior con cielo despejado.',
+    3:'El GPS tarda en responder…'}[err.code]||('Error de GPS: '+err.message);
+  const first=st.gpsErr!==msg;st.gpsErr=msg;st.gpsErrCode=err.code;
+  if(first&&!demo)toast(msg,err.code===1?9000:4000);
+  if(err.code===1&&gpsWatch!=null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;}
+}
+function gpsIn(p){
+  const c=p.coords,t=now();
+  let sp=c.speed;
+  if(sp==null||!(sp>=0)){
+    sp=0;
+    if(prevFix){const d=hav(prevFix.la,prevFix.lo,c.latitude,c.longitude),dtf=(p.timestamp-prevFix.ts)/1000;if(dtf>0&&d>(c.accuracy||10))sp=d/dtf;}
+  }
+  const live=sensorsLive(t),wasOk=gpsOk(t);
+  st.vGps=sp;st.gpsAcc=c.accuracy;st.la=c.latitude;st.lo=c.longitude;st.gpsT=t;
+  if(live&&wasOk){
+    const age=clamp((Date.now()-p.timestamp)/1000,0,1.5);
+    st.v=Math.max(0,st.v+(sp-vAt(t-age))*0.6);
+    if(sp<0.3&&Math.abs(st.axS)<0.04)st.v=0;
+  }else{
+    const pv=st.v;st.v=sp;
+    if(!live&&prevFix){const dtf=Math.max(0.2,t-prevFix.t);st.dist+=sp*dtf;tickPerf(t,sp,(sp-pv)/dtf/G,dtf);}
+  }
+  prevFix={la:c.latitude,lo:c.longitude,ts:p.timestamp,t};
+}
+
+
+/* ================= cronometraje 0-100 ================= */
+const SPD=[50,100,150,200];
+const DST=[[100,'100 m'],[201.168,'201 m'],[402.336,'402 m']];
+const ROLLS=[[60,100],[80,120],[100,200]];
+const perf={state:'wait',still:null,calm:0,cnt:0,creep:null,t0:0,d:0,peak:0,res:null,pk:null,pt:null,last:store.get('lastRun',null),flash:0};
+const rollSt=ROLLS.map(()=>({on:false,tA:0}));
+let brk={on:false,t:0,d:0};
+let bests=store.get('bests',{});
+let lastRes=store.get('lastRes',{});
+let hist=store.get('hist',[]);
+function setBest(key,val,extra){
+  if(demo)return false;
+  if(!bests[key]||val<bests[key].t){bests[key]=Object.assign({t:val,date:Date.now()},extra||{});store.set('bests',bests);return true;}
+  return false;
+}
+function tickPerf(t,v,aG,dt){
+  const k=v*3.6;
+  const pk=perf.pk==null?k:perf.pk,pt=perf.pt==null?t:perf.pt;
+  perf.pk=k;perf.pt=t;
+  const hi=sensorsLive(t);
+  switch(perf.state){
+    case 'wait':
+      if(k<2){if(perf.still==null)perf.still=t;if(t-perf.still>1){perf.state='armed';perf.calm=t;perf.cnt=0;perf.creep=null;}}
+      else perf.still=null;
+      break;
+    case 'armed':
+      if(aG<0.04)perf.calm=t;
+      perf.cnt=aG>0.12?perf.cnt+1:0;
+      if((hi&&perf.cnt>=4)||k>4){
+        let t0;
+        if(hi)t0=t-perf.calm<3?perf.calm:ix(pt,pk,t,k,1);
+        else t0=Math.max(pt-1,ix(pt,pk,t,k,0));
+        perf.state='run';perf.t0=t0;perf.d=0;perf.peak=k;
+        perf.res={date:Date.now(),spd:{},dst:{},peak:k,demo:demo||undefined};
+      }else if(k>=2){if(perf.creep==null)perf.creep=t;if(t-perf.creep>2){perf.state='wait';perf.still=null;}}
+      else perf.creep=null;
+      break;
+    case 'run':{
+      const el=t-perf.t0,d0=perf.d;
+      perf.d+=(pk+k)/2/3.6*dt;perf.peak=Math.max(perf.peak,k);
+      const r=perf.res;r.peak=perf.peak;
+      for(const s of SPD){const key='0-'+s;if(r.spd[key]==null&&pk<s&&k>=s){r.spd[key]=ix(pt,pk,t,k,s)-perf.t0;perf.flash=t;}}
+      for(const[m,name]of DST){if(!r.dst[name]&&d0<m&&perf.d>=m){const f=(m-d0)/(perf.d-d0);r.dst[name]={t:pt+(t-pt)*f-perf.t0,v:pk+(k-pk)*f};perf.flash=t;}}
+      if(el>3&&perf.peak<6){perf.state='wait';perf.still=null;perf.res=null;break;}
+      if(k<perf.peak-15||el>120||(k<1&&el>2)||(r.spd['0-200']!=null&&r.dst['402 m']))finishRun();
+      break;}
+  }
+  // recuperaciones
+  ROLLS.forEach(([a,b],i)=>{
+    const r=rollSt[i];
+    if(!r.on){if(pk<a&&k>=a){r.on=true;r.tA=ix(pt,pk,t,k,a);}}
+    else if(k<a-3||t-r.tA>60)r.on=false;
+    else if(pk<b&&k>=b){
+      const res=ix(pt,pk,t,k,b)-r.tA,key=a+'-'+b;r.on=false;
+      lastRes[key]={t:res,date:Date.now(),demo:demo||undefined};if(!demo)store.set('lastRes',lastRes);
+      const nb=setBest(key,res);beep(nb?1600:1200);toast(`${key} km/h: ${res.toFixed(2)} s${nb?' · ¡récord!':''}`);
+    }
+  });
+  // frenada 100-0
+  if(!brk.on){if(pk>=100&&k<100)brk={on:true,t:ix(pt,pk,t,k,100),d:0};}
+  else{
+    brk.d+=(pk+k)/2/3.6*dt;
+    if(k>103||t-brk.t>20)brk.on=false;
+    else if(k<1){
+      const te=k<=0?ix(pt,pk,t,k,0):t,res={t:te-brk.t,d:brk.d};brk.on=false;
+      if(res.t>0.8){
+        lastRes['100-0']=Object.assign({date:Date.now(),demo:demo||undefined},res);if(!demo)store.set('lastRes',lastRes);
+        let nb=false;if(!demo&&(!bests['100-0']||res.d<bests['100-0'].d)){bests['100-0']=Object.assign({date:Date.now()},res);store.set('bests',bests);nb=true;}
+        beep(nb?1600:1200);toast(`Frenada 100-0: ${res.d.toFixed(1)} m · ${res.t.toFixed(2)} s${nb?' · ¡récord!':''}`);
+      }
+    }
+  }
+}
+function finishRun(){
+  const r=perf.res;perf.state='wait';perf.still=null;perf.res=null;
+  if(r&&(Object.keys(r.spd).length||Object.keys(r.dst).length)){
+    r.date=Date.now();perf.last=r;
+    let nb=false;
+    for(const[k,v]of Object.entries(r.spd))nb=setBest(k,v)||nb;
+    for(const[k,v]of Object.entries(r.dst))nb=setBest(k,v.t,{v:v.v})||nb;
+    hist.unshift(r);hist=hist.slice(0,100);
+    if(!demo){store.set('lastRun',r);store.set('hist',hist);}
+    beep(nb?1600:1200);perf.flash=now();
+    if(r.spd['0-100']!=null)toast(`0-100: ${r.spd['0-100'].toFixed(2)} s${nb?' · ¡récord!':''}`);
+  }
+}
+
+/* ================= calibración ================= */
+const calib={active:false,t0:0,sum:[0,0,0],n:0};
+function startCalib(){
+  if(demo){toast('En modo demo no se calibra');return;}
+  if(now()-st.lastMotion>1){toast('No llegan datos de los sensores');return;}
+  Object.assign(calib,{active:true,t0:now(),sum:[0,0,0],n:0});
+  $('calibOv').hidden=false;$('calibMsg').textContent='Mantén la moto recta y quieta';
+}
+function calibStep(raw,w,t){
+  if((w&&len(w)>0.35)||Math.abs(len(raw)-G)>1.2){
+    Object.assign(calib,{t0:t,sum:[0,0,0],n:0});$('calibMsg').textContent='Se está moviendo… mantenlo quieto';return;
+  }
+  calib.sum=add(calib.sum,raw);calib.n++;
+  const p=Math.min(1,(t-calib.t0)/2);
+  $('calibArc').style.strokeDashoffset=String(326.7*(1-p));
+  if(p>=1&&calib.n>20){
+    cal={graw:scl(calib.sum,1/calib.n),fwdraw:null};store.set('cal',cal);
+    settings.flipFwd=false;saveSettings();syncSet();
+    computeAxes();st.roll=0;st.pitch=0;st.axS=st.ayS=0;trail.length=0;
+    Object.assign(st.max,zeroMax());
+    calib.active=false;$('calibOv').hidden=true;toast('Calibrado ✔');
+  }
+}
+const fwdDet={active:false,sum:[0,0,0],T:0,n:0,t0:0};
+function startFwd(){
+  if(!axes){toast('Primero calibra');return;}
+  if(demo){toast('No disponible en modo demo');return;}
+  Object.assign(fwdDet,{active:true,sum:[0,0,0],T:0,n:0,t0:now()});
+  toast('Acelera en línea recta unos segundos…',5000);
+}
+function fwdStep(lin,U,dt,t){
+  if(t-fwdDet.t0>90){fwdDet.active=false;toast('No se detectó aceleración');return;}
+  const h=perp(lin,U);
+  if(len(h)/G>0.12){
+    if(fwdDet.n>10&&dot(nrm(h),nrm(fwdDet.sum))<0.6)return;
+    fwdDet.sum=add(fwdDet.sum,h);fwdDet.n++;fwdDet.T+=dt;
+  }
+  if(fwdDet.T>=1.2){
+    cal.fwdraw=scl(nrm(fwdDet.sum),signs.acc);store.set('cal',cal);
+    settings.flipFwd=false;saveSettings();syncSet();computeAxes();
+    fwdDet.active=false;toast('Dirección de marcha detectada ✔');beep(1400);
+  }
+}
+
+/* ================= grabación ================= */
+const rec={on:false,rows:[],lt:0};
+function recTick(t){
+  if(!rec.on||t-rec.lt<0.1)return;rec.lt=t;
+  rec.rows.push([Date.now(),st.la!=null?st.la.toFixed(6):'',st.lo!=null?st.lo.toFixed(6):'',(st.v*3.6).toFixed(1),st.axS.toFixed(3),st.ayS.toFixed(3),st.lean.toFixed(1),st.pitchD.toFixed(1)]);
+}
+async function exportCsv(){
+  if(!rec.rows.length){toast('No hay datos grabados');return;}
+  const csv='time,lat,lon,speed_kmh,g_long,g_lat,lean_deg,pitch_deg\n'+rec.rows.map(r=>[new Date(r[0]).toISOString(),...r.slice(1)].join(',')).join('\n');
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const name=`racemeter-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.csv`;
+  const blob=new Blob([csv],{type:'text/csv'});
+  try{const f=new File([blob],name,{type:'text/csv'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);
+}
+
+/* ================= sonido / pantalla ================= */
+let actx=null;
+function unlockAudio(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const b=actx.createBuffer(1,1,22050),s=actx.createBufferSource();s.buffer=b;s.connect(actx.destination);s.start(0);}catch(e){}}
+function beep(f=1200,d=0.14){
+  if(!actx||!settings.sound)return;
+  try{const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;o.frequency.value=f;g.gain.setValueAtTime(0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+d);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}
+}
+async function keepAwake(){try{if('wakeLock' in navigator&&document.visibilityState==='visible')await navigator.wakeLock.request('screen');}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&started)keepAwake();});
+let toastT=0;
+function toast(msg,ms=2600){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),ms);}
+
+/* ================= modo demo: moto en un circuito simulado ================= */
+let sim=null,simTimer=null,backup=null;
+function buildCircuit(){
+  // tramos: l = longitud (m), k = curvatura (1/m, + derecha). Cierra solo: 4 curvas de 90° + 2 chicanes simétricas.
+  const seg=[],S=l=>seg.push({l,k:0}),A=(deg,r,dir,lat)=>seg.push({l:deg*D2R*r,k:dir/r,lat});
+  const side=()=>{S(220);A(45,40,-1,1.0);A(45,40,1,1.0);S(220);A(90,50,1,1.15);S(150);A(90,50,1,1.15);};
+  side();side();
+  let s=0;for(const g of seg){g.s=s;s+=g.l;if(g.k)g.vc=Math.sqrt(g.lat*G/Math.abs(g.k));}
+  return{seg,total:s};
+}
+function enterDemo(){
+  if(demo)return;
+  backup={cal,signs:JSON.parse(JSON.stringify(signs)),max:Object.assign({},st.max)};
+  const b=72*D2R,U=[0,Math.sin(b),Math.cos(b)],F=nrm(perp([0,0,-1],U)),L=cross(U,F);
+  demo=true;
+  cal={graw:scl(U,G),fwdraw:null};signs=Object.assign(defSigns(),{gdone:true});
+  computeAxes();Object.assign(st.max,zeroMax());st.v=0;st.roll=st.pitch=0;st.dist=0;
+  const la0=37.2306,lo0=-1.2152;
+  sim={U,F,L,c:buildCircuit(),pos:0,v:0,t:0,x:0,y:0,hd:0,lean:0,hist:[],la0,lo0,lg:0,lt:0,go:3};
+  simTimer=setInterval(simTick,1000/60);
+  syncSet();toast('Modo demo: circuito simulado');
+}
+function exitDemo(){
+  if(!demo)return;
+  clearInterval(simTimer);simTimer=null;demo=false;
+  cal=backup.cal;signs=backup.signs;Object.assign(st.max,backup.max);computeAxes();
+  st.v=0;st.gpsT=-99;st.gpsAcc=null;st.lastMotion=-99;perf.state='wait';perf.res=null;perf.pk=perf.pt=null;lastT=0;
+  hist=store.get('hist',[]);lastRes=store.get('lastRes',{});perf.last=store.get('lastRun',null);
+  syncSet();startGps();toast('Modo demo desactivado');
+}
+function simTick(){
+  const t=now(),s=sim,dt=s.lt?Math.min(0.05,t-s.lt):1/60;s.lt=t;s.t+=dt;
+  const C=s.c,p=s.pos%C.total;
+  let i=C.seg.findIndex(g=>p>=g.s&&p<g.s+g.l);if(i<0)i=0;
+  const cur=C.seg[i];
+  // velocidad permitida mirando 400 m por delante
+  let vAllow=78;
+  for(let j=0,d=0;j<C.seg.length&&d<400;j++){
+    const g=C.seg[(i+j)%C.seg.length];
+    const dist=j===0?0:d;
+    if(g.k)vAllow=Math.min(vAllow,Math.sqrt(g.vc*g.vc+2*9.3*dist));
+    d+=j===0?cur.s+cur.l-p:g.l;
+  }
+  let a=0;
+  if(s.t<s.go)a=0;
+  else if(s.v>vAllow+0.05)a=-9.3;
+  else a=Math.min(Math.max(1.2,8.8-s.v*0.1),(vAllow-s.v)/dt);
+  s.v=Math.max(0,s.v+a*dt);s.pos+=s.v*dt;
+  const yr=s.v*cur.k;
+  s.hd+=yr*dt;s.x+=s.v*Math.sin(s.hd)*dt;s.y+=s.v*Math.cos(s.hd)*dt;
+  const target=Math.atan(s.v*yr/G),lean=s.lean+(target-s.lean)*(1-Math.exp(-dt/0.18)),lr=(lean-s.lean)/dt;s.lean=lean;
+  // en una moto real el giro (guiñada) es consecuencia de la inclinación: ω = g·tan(φ)/v
+  const yrs=s.v>0.5?G*Math.tan(lean)/s.v:0;
+  const {U,F,L}=s;
+  const upw=add(scl(U,Math.cos(lean)),scl(L,Math.sin(lean)));
+  const rightw=add(scl(L,-Math.cos(lean)),scl(U,Math.sin(lean)));
+  const n=()=>(Math.random()-0.5)*0.4;
+  const f=add(add(scl(upw,G),scl(F,a)),scl(rightw,s.v*yrs));
+  const wv=add(scl(upw,-yrs),scl(F,lr)),wn=()=>(Math.random()-0.5)*0.02;
+  step([f[0]+n(),f[1]+n(),f[2]+n()],[wv[2]+wn(),wv[0]+wn(),wv[1]+wn()],t);   // [alpha,beta,gamma]=[z,x,y]
+  s.hist.push([s.t,s.v,s.x,s.y]);while(s.hist.length&&s.hist[0][0]<s.t-1)s.hist.shift();
+  if(s.t-s.lg>=1){
+    s.lg=s.t;const o=s.hist.find(h=>h[0]>=s.t-0.3)||s.hist[0];
+    const la=s.la0+o[3]/110574,lo=s.lo0+o[2]/(111320*Math.cos(s.la0*D2R));
+    gpsIn({coords:{latitude:la,longitude:lo,speed:Math.max(0,o[1]+(o[1]>0?(Math.random()-0.5)*0.2:0)),accuracy:4,heading:s.hd*R2D},timestamp:Date.now()-300});
+  }
+}
+
+/* ================= dibujo ================= */
+function prep(c){
+  const r=c.getBoundingClientRect(),d=Math.min(3,window.devicePixelRatio||1),w=Math.round(r.width*d),h=Math.round(r.height*d);
+  if(!w||!h)return null;
+  if(c.width!==w||c.height!==h){c.width=w;c.height=h;}
+  const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,r.width,r.height);
+  return{x,w:r.width,h:r.height};
+}
+function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath();}
+const FONT='-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif';
+const GOLD='#f5b62a';
+function drawLean(c){
+  const p=prep(c);if(!p)return;const{x,w,h}=p;
+  const ang=st.lean,M=st.max,RANGE=68;
+  const cx=w/2,cy=h*0.86,R=Math.min(w*0.4,h*0.74);
+  const A=a=>(-90+a)*D2R;
+  // brillo de fondo
+  const gr=x.createRadialGradient(cx,cy-R*0.35,0,cx,cy-R*0.35,R*0.95);
+  gr.addColorStop(0,'rgba(245,182,42,0.10)');gr.addColorStop(1,'rgba(245,182,42,0)');
+  x.fillStyle=gr;x.beginPath();x.arc(cx,cy-R*0.35,R*0.95,0,Math.PI*2);x.fill();
+  // arco base con degradado (más claro arriba)
+  x.lineCap='round';x.lineWidth=Math.max(4,R*0.035);
+  for(let a=-RANGE;a<RANGE;a+=2){
+    const k=1-Math.abs(a)/RANGE;
+    x.strokeStyle=`rgba(${Math.round(70+120*k)},${Math.round(76+110*k)},${Math.round(90+90*k)},${0.35+0.4*k})`;
+    x.beginPath();x.arc(cx,cy,R,A(a),A(Math.min(RANGE,a+2.3)));x.stroke();
+  }
+  // arco activo dorado
+  const va=clamp(ang,-RANGE,RANGE);
+  if(Math.abs(va)>0.5){
+    x.shadowColor=GOLD;x.shadowBlur=14;x.strokeStyle=GOLD;x.lineWidth=Math.max(5,R*0.045);
+    x.beginPath();if(va>0)x.arc(cx,cy,R,A(0),A(va));else x.arc(cx,cy,R,A(va),A(0));x.stroke();x.shadowBlur=0;
+  }
+  // marca central y etiquetas
+  x.strokeStyle='#c9d0db';x.lineWidth=2.5;x.beginPath();x.moveTo(cx,cy-R-R*0.07);x.lineTo(cx,cy-R+R*0.07);x.stroke();
+  x.font=`700 ${Math.max(11,R*0.1)}px ${FONT}`;x.fillStyle='#c9d0db';x.textAlign='center';x.textBaseline='middle';
+  for(const a of[-60,-30,30,60]){const r=R+R*0.16;x.fillText(Math.abs(a),cx+r*Math.cos(A(a)),cy+r*Math.sin(A(a)));}
+  // marcas de máximo (rayitas doradas)
+  x.strokeStyle=GOLD;x.lineWidth=3;
+  for(const m of[-M.leanL,M.leanR]){if(Math.abs(m)<1)continue;const a=A(clamp(m,-RANGE,RANGE));x.beginPath();x.moveTo(cx+(R-R*0.09)*Math.cos(a),cy+(R-R*0.09)*Math.sin(a));x.lineTo(cx+(R+R*0.09)*Math.cos(a),cy+(R+R*0.09)*Math.sin(a));x.stroke();}
+  // punto actual + línea discontinua hacia el piloto
+  const ap=A(va),px=cx+R*Math.cos(ap),py=cy+R*Math.sin(ap);
+  x.setLineDash([3,4]);x.strokeStyle='rgba(245,182,42,.7)';x.lineWidth=1.5;
+  x.beginPath();x.moveTo(px,py);x.lineTo(cx+R*0.62*Math.cos(ap),cy+R*0.62*Math.sin(ap));x.stroke();x.setLineDash([]);
+  x.fillStyle=GOLD;x.shadowColor=GOLD;x.shadowBlur=10;x.beginPath();x.arc(px,py,Math.max(4,R*0.04),0,Math.PI*2);x.fill();x.shadowBlur=0;
+  // suelo
+  x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=1.5;x.beginPath();x.moveTo(cx-R*0.62,cy);x.lineTo(cx+R*0.62,cy);x.stroke();
+  drawRider(x,cx,cy,R*0.62,va);
+}
+function drawRider(x,cx,cy,s,leanDeg){
+  const lr=leanDeg*D2R,side=Math.sign(leanDeg)||0,hang=clamp(Math.abs(leanDeg)/45,0,1);
+  // sombra
+  x.fillStyle='rgba(0,0,0,.35)';x.beginPath();x.ellipse(cx+Math.sin(lr)*s*0.25,cy+2,s*0.28,s*0.045,0,0,Math.PI*2);x.fill();
+  x.save();x.translate(cx,cy);x.rotate(lr);
+  // neumático trasero
+  x.fillStyle='#262c38';rr(x,-s*0.085,-s*0.46,s*0.17,s*0.46,s*0.07);x.fill();
+  x.strokeStyle='#3b4352';x.lineWidth=1.5;x.stroke();
+  // colín y piloto trasero
+  x.fillStyle='#e9edf2';x.beginPath();x.moveTo(-s*0.16,-s*0.5);x.lineTo(s*0.16,-s*0.5);x.lineTo(s*0.1,-s*0.64);x.lineTo(-s*0.1,-s*0.64);x.closePath();x.fill();
+  x.fillStyle='#ff3348';x.shadowColor='#ff3348';x.shadowBlur=8;rr(x,-s*0.09,-s*0.54,s*0.18,s*0.045,s*0.02);x.fill();x.shadowBlur=0;
+  // escapes
+  x.fillStyle='#8a93a3';rr(x,-s*0.2,-s*0.42,s*0.07,s*0.12,s*0.02);x.fill();rr(x,s*0.13,-s*0.42,s*0.07,s*0.12,s*0.02);x.fill();
+  // piloto: se descuelga hacia el interior
+  x.save();x.translate(0,-s*0.62);x.rotate(lr*0.18);x.translate(side*hang*s*0.12,0);
+  // pierna interior (rodilla fuera)
+  x.strokeStyle='#dfe4ea';x.lineCap='round';x.lineWidth=s*0.09;
+  x.beginPath();x.moveTo(side*s*0.08,-s*0.02);x.lineTo(side*(s*0.14+hang*s*0.16),s*0.16);x.stroke();
+  if(hang>0.4){x.fillStyle=GOLD;x.beginPath();x.arc(side*(s*0.14+hang*s*0.16),s*0.17,s*0.04,0,Math.PI*2);x.fill();}
+  // pierna exterior
+  x.beginPath();x.moveTo(-side*s*0.08,-s*0.02);x.lineTo(-side*s*0.13-(side?0:s*0.0),s*0.12);x.stroke();
+  // espalda
+  x.fillStyle='#f2f5f9';x.beginPath();x.moveTo(-s*0.17,0);x.quadraticCurveTo(-s*0.26,-s*0.26,-s*0.17,-s*0.42);x.quadraticCurveTo(0,-s*0.5,s*0.17,-s*0.42);x.quadraticCurveTo(s*0.26,-s*0.26,s*0.17,0);x.closePath();x.fill();
+  x.fillStyle='#d23244';rr(x,-s*0.035,-s*0.44,s*0.07,s*0.4,s*0.02);x.fill();   // raya del mono
+  x.fillStyle='#2a3140';rr(x,-s*0.15,-s*0.05,s*0.3,s*0.07,s*0.03);x.fill();      // cintura
+  // brazos
+  x.strokeStyle='#dfe4ea';x.lineWidth=s*0.07;
+  x.beginPath();x.moveTo(-s*0.12,-s*0.34);x.lineTo(-s*0.24,-s*0.2);x.stroke();x.beginPath();x.moveTo(s*0.12,-s*0.34);x.lineTo(s*0.24,-s*0.2);x.stroke();
+  // casco
+  x.translate(side*hang*s*0.06,0);
+  x.fillStyle='#f7f8fa';x.beginPath();x.arc(0,-s*0.56,s*0.15,0,Math.PI*2);x.fill();
+  x.fillStyle=GOLD;x.fillRect(-s*0.02,-s*0.71,s*0.04,s*0.3);
+  x.restore();
+  x.restore();
+}
+function drawG(c){
+  const p=prep(c);if(!p)return;const{x,w,h}=p;
+  const cx=w/2,cy=h/2,R=Math.min(w,h)/2-22,S=settings.gScale;
+  const gr=x.createRadialGradient(cx,cy,0,cx,cy,R);gr.addColorStop(0,'rgba(245,182,42,.07)');gr.addColorStop(1,'rgba(245,182,42,0)');
+  x.fillStyle=gr;x.beginPath();x.arc(cx,cy,R,0,Math.PI*2);x.fill();
+  x.lineWidth=1.2;
+  for(let g=0.5;g<=S+1e-6;g+=0.5){
+    x.beginPath();x.arc(cx,cy,R*g/S,0,Math.PI*2);x.strokeStyle=Math.abs(g-1)<1e-6?'rgba(255,255,255,.22)':'rgba(255,255,255,.09)';x.stroke();
+    x.fillStyle='#5b6476';x.font=`600 11px ${FONT}`;x.textAlign='left';x.fillText(g.toFixed(1)+' G',cx+5,cy-R*g/S+13);
+  }
+  x.strokeStyle='rgba(255,255,255,.08)';x.beginPath();x.moveTo(cx-R,cy);x.lineTo(cx+R,cy);x.moveTo(cx,cy-R);x.lineTo(cx,cy+R);x.stroke();
+  x.fillStyle='#8b95a7';x.font=`700 11px ${FONT}`;x.textAlign='center';
+  x.fillText('ACELERA',cx,cy-R-8);x.fillText('FRENA',cx,cy+R+16);
+  x.textAlign='left';x.fillText('IZQ',cx-R+6,cy-7);x.textAlign='right';x.fillText('DER',cx+R-6,cy-7);
+  // envolvente de máximos
+  const M=st.max;
+  x.strokeStyle='rgba(245,182,42,.35)';x.lineWidth=1.5;x.setLineDash([4,4]);x.beginPath();
+  const pts=[[0,M.acc],[M.r,0],[0,-M.brk],[-M.l,0]];
+  pts.forEach(([gx,gy],i)=>{const X=cx+clamp(gx/S,-1.05,1.05)*R,Y=cy-clamp(gy/S,-1.05,1.05)*R;i?x.lineTo(X,Y):x.moveTo(X,Y);});
+  x.closePath();x.stroke();x.setLineDash([]);
+  for(let i=0;i<trail.length;i++){const[gx,gy]=trail[i];x.globalAlpha=(i/trail.length)*0.6;x.fillStyle=GOLD;x.beginPath();x.arc(cx+clamp(gx/S,-1.1,1.1)*R,cy-clamp(gy/S,-1.1,1.1)*R,2.5,0,Math.PI*2);x.fill();}
+  x.globalAlpha=1;
+  const px=cx+clamp(st.ayS/S,-1.1,1.1)*R,py=cy-clamp(st.axS/S,-1.1,1.1)*R;
+  x.shadowColor=GOLD;x.shadowBlur=20;x.fillStyle=GOLD;x.beginPath();x.arc(px,py,12,0,Math.PI*2);x.fill();
+  x.shadowBlur=0;x.fillStyle='#fff';x.beginPath();x.arc(px,py,4,0,Math.PI*2);x.fill();
+}
+function drawSpeed(c){
+  const p=prep(c);if(!p)return;const{x,w,h}=p;
+  const MAXV=300,k=gpsFix(now())?st.v*3.6:0;
+  const cx=w/2,cy=h*0.56,R=Math.min(w*0.42,h*0.48),a0=135*D2R,span=270*D2R;
+  x.lineCap='round';x.lineWidth=R*0.07;x.strokeStyle='rgba(255,255,255,.07)';x.beginPath();x.arc(cx,cy,R,a0,a0+span);x.stroke();
+  const f=clamp(k/MAXV,0,1);
+  if(f>0.003){const g=x.createLinearGradient(cx-R,0,cx+R,0);g.addColorStop(0,'#c98a12');g.addColorStop(1,'#ffd36b');x.strokeStyle=g;x.shadowColor=GOLD;x.shadowBlur=16;x.beginPath();x.arc(cx,cy,R,a0,a0+span*f);x.stroke();x.shadowBlur=0;}
+  const fm=clamp(st.max.spd/MAXV,0,1);if(fm>0.01){const a=a0+span*fm;x.strokeStyle='#fff';x.lineWidth=3;x.beginPath();x.moveTo(cx+(R-R*0.09)*Math.cos(a),cy+(R-R*0.09)*Math.sin(a));x.lineTo(cx+(R+R*0.09)*Math.cos(a),cy+(R+R*0.09)*Math.sin(a));x.stroke();}
+  x.fillStyle='#5b6476';x.font=`700 ${Math.max(10,R*0.075)}px ${FONT}`;x.textAlign='center';x.textBaseline='middle';
+  for(let v=0;v<=MAXV;v+=50){const a=a0+span*v/MAXV,r=R-R*0.2;x.fillText(v,cx+r*Math.cos(a),cy+r*Math.sin(a));}
+  x.fillStyle='#f2f5f9';x.font=`800 ${R*0.55}px ${FONT}`;x.fillText(gpsFix(now())?Math.round(k):'—',cx,cy-R*0.02);
+  x.fillStyle='#8b95a7';x.font=`700 ${R*0.1}px ${FONT}`;x.fillText('KM/H',cx,cy+R*0.36);
+}
+
+/* ================= interfaz ================= */
+const tc={};
+function T(id,v){if(tc[id]!==v){tc[id]=v;const e=$(id);if(e)e.textContent=v;}}
+function H(id,v){if(tc[id]!==v){tc[id]=v;const e=$(id);if(e)e.innerHTML=v;}}
+const fG=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(2);
+const fLat=v=>Math.abs(v).toFixed(2)+(v>0.02?' D':v<-0.02?' I':'');
+const fs=v=>v==null?'—':v.toFixed(2);
+const fDate=ts=>{const d=new Date(ts),p=n=>String(n).padStart(2,'0');return`${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;};
+let view='track';
+function updStatus(t){
+  let cls='ok',txt='ACTIVO';
+  if(!started){cls='warn';txt='INICIO';}
+  else if(demo){cls='warn';txt='DEMO';}
+  else if(t-st.lastMotion>1){cls='bad';txt='SIN SENSORES';}
+  else if(!axes){cls='warn';txt='CALIBRAR';}
+  else if(!gpsFix(t)){cls=st.gpsErrCode===1?'bad':'warn';txt=st.gpsErrCode===1?'GPS DENEGADO':'BUSCANDO GPS';}
+  else if(!gpsOk(t)){cls='warn';txt='GPS ±'+Math.round(st.gpsAcc)+' M';}
+  const e=$('status');if(e.className!=='status '+cls)e.className='status '+cls;
+  T('statusT',txt);$('recDot').hidden=!rec.on;
+}
+function updText(t){
+  const k=st.v*3.6,M=st.max,go=gpsFix(t);
+  updStatus(t);
+  T('bikeName',settings.bike);
+  if(view==='track'){
+    $('calBanner').hidden=!!axes||!started||demo;
+    T('tLean',Math.round(Math.abs(st.lean)).toString());
+    const L=st.lean<0?-st.lean:0,Rr=st.lean>0?st.lean:0;
+    T('sideL',Math.round(L).toString());T('sideR',Math.round(Rr).toString());
+    $('sideLBox').classList.toggle('on',L>3);$('sideRBox').classList.toggle('on',Rr>3);
+    T('maxL',Math.round(M.leanL)+'°');T('maxR',Math.round(M.leanR)+'°');
+    T('tSpd',go?Math.round(k).toString():'—');
+    T('tLat',(st.ayS>=0?'+':'−')+Math.abs(st.ayS).toFixed(2)+'G');
+    T('tPeak',Math.max(M.l,M.r).toFixed(2)+'G');
+  }else if(view==='speed'){
+    T('sMax',Math.round(M.spd).toString());T('sAcc',fG(st.axS)+'G');T('sDist',(st.dist/1000).toFixed(1));
+    T('s0100',fs(perf.last&&perf.last.spd['0-100']));T('s0100b',fs(bests['0-100']&&bests['0-100'].t));T('s0200b',fs(bests['0-200']&&bests['0-200'].t));
+  }else if(view==='g'){
+    T('gLon',fG(st.axS));T('gLat',fLat(st.ayS));T('gTot',Math.hypot(st.axS,st.ayS).toFixed(2));
+    T('gMA',M.acc.toFixed(2)+' G');T('gMB',M.brk.toFixed(2)+' G');T('gML',M.l.toFixed(2)+' G');T('gMR',M.r.toFixed(2)+' G');
+    T('gWh',M.up.toFixed(0)+'°');T('gSt',M.dn.toFixed(0)+'°');
+  }else if(view==='perf')updPerf(t,go,k);
+}
+function updPerf(t,go,k){
+  const ps=$('perfState');let cls='perfstate',txt;
+  if(!go)txt='ESPERANDO GPS…';
+  else if(perf.state==='armed'){cls+=' armed';txt='LISTO · ACELERA CUANDO QUIERAS';}
+  else if(perf.state==='run'){cls+=' run';txt='MIDIENDO…';}
+  else txt=k>=2?'DETENTE PARA ARMAR EL CRONO':'ESPERANDO…';
+  if(ps.className!==cls)ps.className=cls;T('perfState',txt);
+  const tm=$('perfTimer');
+  if(perf.state==='run'){T('perfTimer',(t-perf.t0).toFixed(2));T('perfDist',Math.round(perf.d).toString());}
+  else if(perf.state==='armed'){T('perfTimer','0.00');T('perfDist','0');}
+  else{const r=perf.last;T('perfTimer',r&&r.spd['0-100']!=null?r.spd['0-100'].toFixed(2):'0.00');}
+  const fl=t-perf.flash<1.8;if(tm.classList.contains('flash')!==fl)tm.classList.toggle('flash',fl);
+  T('perfSpd',go?Math.round(k).toString():'—');
+  const r=perf.state==='run'?perf.res:perf.last;
+  let h=`<table><tr><th></th><th>${perf.state==='run'?'Actual':'Última'}</th><th>Mejor</th></tr>`;
+  for(const s of SPD){const key='0-'+s,b=bests[key];h+=`<tr><td>${key} km/h</td><td>${fs(r&&r.spd[key])}</td><td class="best">${fs(b&&b.t)}</td></tr>`;}
+  for(const[,n]of DST){const c=r&&r.dst[n],b=bests[n];h+=`<tr><td>${n}</td><td>${c?c.t.toFixed(2)+`<span class="sub">${Math.round(c.v)} km/h</span>`:'—'}</td><td class="best">${b?b.t.toFixed(2)+`<span class="sub">${Math.round(b.v)} km/h</span>`:'—'}</td></tr>`;}
+  H('perfRun',h+'</table>');
+  let h2=`<table><tr><th></th><th>Última</th><th>Mejor</th></tr>`;
+  for(const[a,b]of ROLLS){const key=a+'-'+b,l=lastRes[key],bb=bests[key];h2+=`<tr><td>${key} km/h</td><td>${fs(l&&l.t)}</td><td class="best">${fs(bb&&bb.t)}</td></tr>`;}
+  const l0=lastRes['100-0'],b0=bests['100-0'];
+  h2+=`<tr><td>Frenada 100-0</td><td>${l0?l0.d.toFixed(1)+' m<span class="sub">'+l0.t.toFixed(2)+' s</span>':'—'}</td><td class="best">${b0?b0.d.toFixed(1)+' m<span class="sub">'+b0.t.toFixed(2)+' s</span>':'—'}</td></tr>`;
+  H('perfRoll',h2+'</table>');
+  let h3='';
+  for(const x of hist.slice(0,15)){
+    const parts=[];if(x.spd['0-100']!=null)parts.push('0-100 <b>'+x.spd['0-100'].toFixed(2)+'</b>');if(x.spd['0-200']!=null)parts.push('0-200 <b>'+x.spd['0-200'].toFixed(2)+'</b>');if(x.dst['402 m'])parts.push('402 m <b>'+x.dst['402 m'].t.toFixed(2)+'</b>');
+    if(!parts.length)parts.push('máx '+Math.round(x.peak)+' km/h');
+    h3+=`<div><span style="color:var(--mut)">${fDate(x.date)}${x.demo?'<span class="tag">DEMO</span>':''}</span><span>${parts.join(' · ')}</span></div>`;
+  }
+  H('perfHist',h3||'<div><span style="color:var(--mut)">Aún no hay tiempos</span></div>');
+}
+function drawView(){
+  if(view==='track')drawLean($('cLean'));
+  else if(view==='g')drawG($('cG'));
+  else if(view==='speed')drawSpeed($('cSpd'));
+}
+let lastTxt=0,lastSave=0;
+function frame(){
+  requestAnimationFrame(frame);
+  const t=now();
+  if(t-lastTxt>0.07){lastTxt=t;updText(t);}
+  drawView();
+  if(t-lastSave>3){lastSave=t;if(!demo)store.set('max',st.max);if(view==='set')updDiag();}
+}
+
+/* ================= ajustes ================= */
+function syncSet(){
+  document.querySelectorAll('#segScale button').forEach(b=>b.classList.toggle('on',+b.dataset.s===settings.gScale));
+  $('tFwd').checked=settings.flipFwd;$('tLat').checked=settings.flipLat;$('tSnd').checked=settings.sound;
+  $('recLbl').textContent=rec.on?'Detener grabación':'Iniciar grabación';
+  $('expN').textContent=rec.rows.length+' filas';
+  $('demoLbl').textContent=demo?'Desactivar modo demo':'Activar modo demo';
+  $('setBike').textContent=settings.bike;
+  updDiag();
+}
+function updDiag(){
+  const t=now();
+  $('diag').innerHTML=[
+    `Sensores: ${t-st.lastMotion<1?Math.round(st.hz)+' Hz':'sin datos'} · calibrado: ${axes?'sí':'no'}${cal&&cal.fwdraw?' (+dirección)':''}`,
+    `GPS: ${gpsFix(t)?'±'+Math.round(st.gpsAcc)+' m · '+(st.vGps*3.6).toFixed(1)+' km/h'+(gpsOk(t)?'':' (impreciso: no mide tiempos)'):'sin posición'}`+(st.gpsErr?`<br><span style="color:#ff8a96">${st.gpsErr}</span>`:''),
+    `Acelerómetro ${signs.acc>0?'+':'−'} (${signs.accConf}) · Giroscopio ${GMAPN[signs.gmap]} ${signs.gsign>0?'+':'−'} (${signs.gn}${signs.gdone?' ✔':''})`,
+    `HTTPS: ${window.isSecureContext?'sí':'NO'}`
+  ].join('<br>');
+}
+function resetMax(){Object.assign(st.max,zeroMax());trail.length=0;store.set('max',st.max);toast('Máximos reiniciados');}
+function setView(v){
+  view=v;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  for(const k in tc)delete tc[k];
+  document.querySelector('main').scrollTop=0;
+  if(v==='set')syncSet();
+}
+function act(a){
+  switch(a){
+    case 'goSettings':setView('set');break;
+    case 'renameBike':{let n=null;try{n=prompt('Nombre de tu moto',settings.bike);}catch(e){toast('No se puede cambiar el nombre aquí');}if(n&&n.trim()){settings.bike=n.trim().slice(0,30);saveSettings();syncSet();}break;}
+    case 'calib':startCalib();break;
+    case 'cancelCalib':calib.active=false;$('calibOv').hidden=true;break;
+    case 'fwd':startFwd();break;
+    case 'resetMax':resetMax();break;
+    case 'rec':rec.on=!rec.on;if(rec.on){rec.rows=[];toast('Grabando a 10 Hz');}else toast(`Grabación detenida (${rec.rows.length} filas)`);syncSet();break;
+    case 'export':exportCsv();break;
+    case 'retryGps':if(gpsWatch!=null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;}st.gpsErr=null;st.gpsErrCode=null;startGps();toast('Buscando GPS…');break;
+    case 'clearHist':if(confirm('¿Borrar historial, récords y últimos tiempos?')){hist=[];bests={};lastRes={};perf.last=null;store.set('hist',[]);store.set('bests',{});store.set('lastRes',{});store.set('lastRun',null);toast('Borrado');}break;
+    case 'demo':demo?exitDemo():enterDemo();setView('track');break;
+    case 'resetSigns':if(demo)return;signs=defSigns();store.set('signs',signs);computeAxes();prevU=null;updDiag();toast('Mueve y gira el móvil unos segundos en la mano');break;
+  }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(b){act(b.dataset.act);return;}
+  const nv=e.target.closest('#nav button');if(nv){setView(nv.dataset.v);return;}
+  const s=e.target.closest('#segScale button');if(s){settings.gScale=+s.dataset.s;saveSettings();syncSet();}
+});
+$('tFwd').addEventListener('change',e=>{settings.flipFwd=e.target.checked;saveSettings();computeAxes();});
+$('tLat').addEventListener('change',e=>{settings.flipLat=e.target.checked;saveSettings();});
+$('tSnd').addEventListener('change',e=>{settings.sound=e.target.checked;saveSettings();if(settings.sound){unlockAudio();beep();}});
+
+/* ================= arranque ================= */
+if(!window.isSecureContext&&location.protocol!=='file:')$('httpsWarn').hidden=false;
+async function begin(withDemo){
+  $('start').hidden=true;started=true;unlockAudio();
+  if(!withDemo){
+    const reqs=[];
+    try{if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function')reqs.push(DeviceMotionEvent.requestPermission());}catch(e){}
+    try{if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')reqs.push(DeviceOrientationEvent.requestPermission());}catch(e){}
+    const rs=await Promise.all(reqs.map(p=>p.catch(()=>'denied')));
+    if(rs.some(r=>r!=='granted'))toast('Sin permiso de movimiento. Cierra la app y vuelve a abrirla para aceptarlo.',5000);
+    startGps();
+    setTimeout(()=>{if(now()-st.lastMotion>1&&!demo)toast('No llegan datos de los sensores de movimiento',4000);else if(!cal&&!demo)toast('Fija el móvil en la moto y calibra en Ajustes',4000);},2500);
+  }
+  addEventListener('devicemotion',onMotion);addEventListener('deviceorientation',onOrient);
+  keepAwake();
+  if(withDemo)enterDemo();
+}
+$('btnStart').addEventListener('click',()=>begin(false));
+$('btnDemo').addEventListener('click',()=>begin(true));
+syncSet();
+requestAnimationFrame(frame);
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
