@@ -217,7 +217,7 @@ export function renderDiagnostics(app, t) {
     `Sensores: ${app.sensorsReceiving(t) ? Math.round(app.sensorHz) + ' Hz' : 'sin datos'} · calibrado: ${fusion.calibrated ? 'sí' : 'no'}${fusion.cal && fusion.cal.fwdraw ? ' (+dirección)' : ''}`,
     `GPS: ${gpsLine}` + (gps.err ? `<br><span style="color:#ff8a96">${gps.err}</span>` : ''),
     `Acelerómetro ${sg.acc > 0 ? '+' : '−'} (${sg.accConf}) · Giroscopio ${GYRO_MAP_NAMES[sg.gmap]} ${sg.gsign > 0 ? '+' : '−'} (${sg.gn}${sg.gdone ? ' ✔' : ''})`,
-    `HTTPS: ${window.isSecureContext ? 'sí' : 'NO'}`,
+    `HTTPS: ${window.isSecureContext ? 'sí' : 'NO'} · versión: ${app.version || '—'}`,
   ].join('<br>');
 }
 

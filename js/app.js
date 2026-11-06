@@ -336,4 +336,5 @@ if (!window.isSecureContext && location.protocol !== 'file:') document.getElemen
 bindUi();
 ui.renderSettings(app, now());
 requestAnimationFrame(frame);
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+if (window.caches) caches.keys().then((ks) => { app.version = ks.filter((k) => k.startsWith('racemeter-')).map((k) => k.slice(10)).join(', '); }).catch(() => {});
