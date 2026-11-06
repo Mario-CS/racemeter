@@ -132,6 +132,7 @@ function renderPerf(app, t) {
 
   html('perfRun', standingTable(timer));
   html('perfRoll', rollingTable(timer));
+  html('perfCustom', customTable(timer));
   html('perfHist', historyList(timer.hist));
 }
 
@@ -161,6 +162,17 @@ function rollingTable(timer) {
   const brake = (x) => (x ? `${x.d.toFixed(1)} m<span class="sub">${x.t.toFixed(2)} s</span>` : '—');
   h += `<tr><td>Frenada 100-0</td><td>${brake(last['100-0'])}</td><td class="best">${brake(b['100-0'])}</td></tr>`;
   return h + '</table>';
+}
+
+function customTable(timer) {
+  if (!timer.custom.length) return '<p class="note">Elige tus velocidades, por ejemplo 20-120 o 0-120, y se medirán solas como las recuperaciones.</p>';
+  const last = timer.lastRes, b = timer.bests;
+  let h = '<table><tr><th></th><th>Última</th><th>Mejor</th></tr>';
+  for (const [lo, hi] of timer.custom) {
+    const key = `${lo}-${hi}`;
+    h += `<tr class="del" data-act="delInterval" data-key="${key}"><td>${key} km/h<span class="sub">${lo === 0 ? 'desde parado' : 'lanzado'}</span></td><td>${seconds(last[key] && last[key].t)}</td><td class="best">${seconds(b[key] && b[key].t)}</td></tr>`;
+  }
+  return h + '</table><p class="note" style="margin-top:8px">Toca uno para quitarlo.</p>';
 }
 
 function historyList(hist) {

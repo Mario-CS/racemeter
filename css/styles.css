@@ -540,6 +540,10 @@ td .sub {
   font-weight: 600
 }
 
+tr.del:active td {
+  background: var(--card2)
+}
+
 .hist div {
   display: flex;
   justify-content: space-between;

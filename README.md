@@ -7,6 +7,7 @@ App web (PWA) para iPhone que mide en moto:
 - **Caballito / stoppie** (cabeceo)
 - **0-50, 0-100, 0-150, 0-200** y **100 / 201 / 402 m** desde parado (arranque automático)
 - **Recuperaciones** 60-100, 80-120, 100-200 y **frenada 100-0**
+- **Intervalos personalizados** (por ejemplo 20-120 o 0-120): en *Tiempos › Mis intervalos*
 - Velocidad GPS, historial, récords y exportación de la sesión a CSV
 
 Sin dependencias ni compilación: HTML, CSS y módulos JavaScript que el navegador carga directamente. Funciona sin conexión una vez instalada.

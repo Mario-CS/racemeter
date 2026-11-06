@@ -4,7 +4,7 @@ import { G, D2R, scale } from './util.js';
 import { storage } from './storage.js';
 import { MotionFusion, defaultSigns } from './fusion.js';
 import { SpeedEstimator } from './speed.js';
-import { PerfTimer } from './timing.js';
+import { PerfTimer, parseInterval } from './timing.js';
 import { emptyMaxima } from './stats.js';
 import { createSession, processSample, processGpsFix, sensorsLive } from './session.js';
 import { Recorder } from './recorder.js';
@@ -18,7 +18,7 @@ const SAVE_EVERY = 3;            // s entre guardados de máximos
 
 /* ======================= estado ======================= */
 
-const settings = { bike: 'Mi moto', flipLat: false, flipFwd: false, gScale: 1.5, sound: true, ...storage.get('settings', {}) };
+const settings = { bike: 'Mi moto', flipLat: false, flipFwd: false, gScale: 1.5, sound: true, intervals: [], ...storage.get('settings', {}) };
 delete settings.mode;            // de versiones antiguas (coche/moto)
 const saveSettings = () => storage.set('settings', settings);
 
@@ -36,7 +36,7 @@ const realFusion = createFusion({
 const app = Object.assign(
   createSession({
     fusion: realFusion,
-    timer: new PerfTimer({ records: loadRecords(), save: (k, v) => storage.set(k, v), onEvent: onTimerEvent }),
+    timer: new PerfTimer({ records: loadRecords(), save: (k, v) => storage.set(k, v), onEvent: onTimerEvent, custom: settings.intervals }),
     maxima: { ...emptyMaxima(), ...storage.get('max', {}) },
     recorder: new Recorder(),
   }),
@@ -202,6 +202,11 @@ function exitDemo() {
 
 /* ======================= acciones de la interfaz ======================= */
 
+function setIntervals(list) {
+  settings.intervals = list; saveSettings();
+  app.timer.setCustomIntervals(list);
+}
+
 function setView(view) {
   app.view = view;
   ui.setView(view);
@@ -229,6 +234,23 @@ const actions = {
     toast('Acelera en línea recta unos segundos…', 5000);
   },
   resetMax: () => resetMaxima(),
+  addInterval() {
+    let txt = null;
+    try { txt = prompt('Velocidad inicial y final en km/h (por ejemplo 20-120)', ''); } catch { return toast('No se puede añadir aquí'); }
+    if (txt == null || !txt.trim()) return;
+    const { interval, error } = parseInterval(txt, settings.intervals);
+    if (error) return toast(error, 3500);
+    setIntervals([...settings.intervals, interval].sort((x, y) => x[0] - y[0] || x[1] - y[1]));
+    toast(`${interval[0]}-${interval[1]} km/h añadido ✔`);
+  },
+  delInterval(el) {
+    const key = el.dataset.key;
+    if (!confirm(`¿Quitar el ${key} km/h? Se borran también sus tiempos.`)) return;
+    setIntervals(settings.intervals.filter(([a, b]) => `${a}-${b}` !== key));
+    const { bests, lastRes } = app.timer;
+    delete bests[key]; delete lastRes[key];
+    storage.set('bests', bests); storage.set('lastRes', lastRes);
+  },
   rec() {
     const r = app.recorder;
     if (r.on) { r.stop(); toast(`Grabación detenida (${r.rows.length} filas)`); } else { r.start(); toast('Grabando a 10 Hz'); }
@@ -257,7 +279,7 @@ const actions = {
 function bindUi() {
   document.addEventListener('click', (e) => {
     const act = e.target.closest('[data-act]');
-    if (act) { const fn = actions[act.dataset.act]; if (fn) fn(); return; }
+    if (act) { const fn = actions[act.dataset.act]; if (fn) fn(act); return; }
     const nav = e.target.closest('#nav button');
     if (nav) { setView(nav.dataset.v); return; }
     const seg = e.target.closest('#segScale button');

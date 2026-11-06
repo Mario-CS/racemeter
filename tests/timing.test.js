@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PerfTimer } from '../js/timing.js';
+import { PerfTimer, parseInterval } from '../js/timing.js';
 import { calibratedSession, runStraight, timeWhen, kmh } from './helpers.js';
 
 const ACCEL = 6;     // m/s²
@@ -72,4 +72,26 @@ test('en modo demo no se guardan récords', () => {
   for (let i = 0; i < 600; i++) { v += 6 / 60; timer.tick((t += 1 / 60), v, 0.6, 1 / 60, true); }
   assert.deepEqual(saved, []);
   assert.deepEqual(timer.bests, {});
+});
+
+test('intervalos personalizados: 20-120 lanzado y 0-120 desde parado (error < 0,1 s)', () => {
+  const { session, events, axes } = calibratedSession();
+  session.timer.setCustomIntervals([[0, 120], [20, 120]]);
+  const hist = runStraight(session, axes, 30, profile());
+  const t0 = 3;   // la moto arranca a los 3 s
+  const truth = { '20-120': timeWhen(hist, kmh(120)) - timeWhen(hist, kmh(20)), '0-120': timeWhen(hist, kmh(120)) - t0 };
+  for (const [key, real] of Object.entries(truth)) {
+    const ev = events.find((e) => e.type === 'roll' && e.key === key);
+    assert.ok(ev, `debería medirse ${key}`);
+    assert.ok(Math.abs(ev.time - real) < 0.1, `${key}: medido ${ev.time.toFixed(3)} s vs real ${real.toFixed(3)} s`);
+    assert.equal(session.timer.bests[key].t, ev.time);
+  }
+});
+
+test('lee los intervalos que escribe el usuario', () => {
+  assert.deepEqual(parseInterval('20-120').interval, [20, 120]);
+  assert.deepEqual(parseInterval(' 30 a 150 km/h ').interval, [30, 150]);
+  assert.deepEqual(parseInterval('0 120').interval, [0, 120]);
+  for (const bad of ['', 'hola', '120-20', '50-52', '0-400', '60-100', '0-100']) assert.ok(parseInterval(bad).error, bad);
+  assert.ok(parseInterval('20-120', [[20, 120]]).error, 'repetido');
 });
