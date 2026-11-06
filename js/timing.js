@@ -23,7 +23,9 @@ const FALSE_START_TIME = 3;     // s
 const FALSE_START_KMH = 6;
 const LIFT_KMH = 15;            // si cae esto por debajo del máximo, la pasada ha terminado
 const MAX_RUN_TIME = 120;       // s
-const ROLL_DROP_KMH = 3;        // margen para anular una recuperación
+const ROLL_DROP_KMH = 3;        // si baja esto, se anula la recuperación
+const ROLL_GAIN_KMH = 1;        // tiene que ganar esto…
+const ROLL_STALL = 2;           // …cada tantos segundos; si no, ha dejado de acelerar y se anula
 const ROLL_TIMEOUT = 60;
 const BRAKE_FROM_KMH = 100;
 const BRAKE_ABORT_KMH = 103;
@@ -77,6 +79,7 @@ export class PerfTimer {
     this.t0 = 0; this.d = 0; this.peak = 0; this.res = null;
     this.pk = null; this.pt = null;                // km/h y t de la muestra anterior
     this.lastSplitT = -99;
+    this.lastRoll = null;                          // {key, time, t} de la última recuperación medida
     this.rolls = {};
     this.setCustomIntervals(this.custom);
     this.brake = { on: false, t: 0, d: 0 };
@@ -92,9 +95,14 @@ export class PerfTimer {
     for (const [a, b] of [...ROLL_INTERVALS, ...this.custom]) {
       if (a <= 0) continue;
       const key = `${a}-${b}`;
-      rolls[key] = this.rolls[key] || { a, b, on: false, tA: 0 };
+      rolls[key] = this.rolls[key] || { a, b, on: false, tA: 0, ref: 0, refT: 0 };
     }
     this.rolls = rolls;
+  }
+
+  /** Recuperaciones que se están midiendo ahora (la que empezó antes, primero). */
+  activeRolls() {
+    return Object.entries(this.rolls).filter(([, r]) => r.on).map(([key, r]) => ({ key, tA: r.tA })).sort((x, y) => x.tA - y.tA);
   }
 
   clearRecords() {
@@ -183,7 +191,7 @@ export class PerfTimer {
       if (a <= 0 && r.spd[key] == null && pk < b && k >= b) {
         r.spd[key] = crossingTime(pt, pk, t, k, b) - this.t0;
         this.lastSplitT = t;
-        this._rollDone(key, r.spd[key]);
+        this._rollDone(key, r.spd[key], t);
       }
     }
     if (elapsed > FALSE_START_TIME && this.peak < FALSE_START_KMH) { this.state = 'wait'; this.stillSince = null; this.res = null; return; }
@@ -212,18 +220,25 @@ export class PerfTimer {
   _rolling(t, k, pk, pt) {
     for (const [key, r] of Object.entries(this.rolls)) {
       const { a, b } = r;
+      // Empieza al pasar por la velocidad inicial acelerando (no hace falta pararse) y
+      // se anula si deja de acelerar o frena, para no sumar el rato que vaya a ritmo constante.
       if (!r.on) {
-        if (pk < a && k >= a) { r.on = true; r.tA = crossingTime(pt, pk, t, k, a); }
-      } else if (k < a - ROLL_DROP_KMH || t - r.tA > ROLL_TIMEOUT) {
+        if (pk < a && k >= a) Object.assign(r, { on: true, tA: crossingTime(pt, pk, t, k, a), ref: k, refT: t });
+        continue;
+      }
+      if (k >= r.ref + ROLL_GAIN_KMH) { r.ref = k; r.refT = t; }
+      if (k < r.ref - ROLL_DROP_KMH || t - r.refT > ROLL_STALL || t - r.tA > ROLL_TIMEOUT) {
         r.on = false;
       } else if (pk < b && k >= b) {
         r.on = false;
-        this._rollDone(key, crossingTime(pt, pk, t, k, b) - r.tA);
+        this._rollDone(key, crossingTime(pt, pk, t, k, b) - r.tA, t);
       }
     }
   }
 
-  _rollDone(key, time) {
+  _rollDone(key, time, t) {
+    this.lastRoll = { key, time, t };
+    this.lastSplitT = t;
     this.lastRes[key] = { t: time, date: Date.now(), demo: this.demo || undefined };
     this._persist('lastRes', this.lastRes);
     const newBest = this._setBest(key, time);

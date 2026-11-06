@@ -95,3 +95,34 @@ test('lee los intervalos que escribe el usuario', () => {
   for (const bad of ['', 'hola', '120-20', '50-52', '0-400', '60-100', '0-100']) assert.ok(parseInterval(bad).error, bad);
   assert.ok(parseInterval('20-120', [[20, 120]]).error, 'repetido');
 });
+
+test('intervalos lanzados sin pararse: 20-120 y 50-150 yendo en marcha', () => {
+  const { session, events, axes } = calibratedSession();
+  session.timer.setCustomIntervals([[20, 120], [50, 150]]);
+  // arranca, rueda a 35 km/h, baja a 15 sin parar y acelera a 5 m/s² hasta 160
+  const hist = runStraight(session, axes, 40, (t, v) => {
+    if (t < 1) return kmh(35);
+    if (t < 12) return v > kmh(15) && t > 8 ? -3 : 0;
+    return v < kmh(160) ? 5 : 0;
+  });
+  assert.ok(Math.min(...hist.filter(([t]) => t > 2).map(([, v]) => v)) > kmh(14), 'no debería pararse');
+  const accel = hist.filter(([t]) => t > 12);
+  for (const key of ['20-120', '50-150']) {
+    const [a, b] = key.split('-').map(Number);
+    const real = timeWhen(accel, kmh(b)) - timeWhen(accel, kmh(a));
+    const ev = events.find((e) => e.type === 'roll' && e.key === key);
+    assert.ok(ev, `debería medirse ${key}`);
+    assert.ok(Math.abs(ev.time - real) < 0.1, `${key}: medido ${ev.time.toFixed(3)} s vs real ${real.toFixed(3)} s`);
+  }
+});
+
+test('una recuperación no cuenta el rato a velocidad constante', () => {
+  const { session, events, axes } = calibratedSession();
+  // de 0 a 70 km/h, 10 s a 70 y luego acelera hasta 110: no hay un 60-100 de verdad
+  runStraight(session, axes, 30, (t, v) => {
+    if (t < 3) return 0;
+    if (t < 15) return v < kmh(70) ? 5 : 0;
+    return v < kmh(110) ? 5 : 0;
+  });
+  assert.ok(!events.some((e) => e.type === 'roll' && e.key === '60-100'), 'el 60-100 debería anularse');
+});

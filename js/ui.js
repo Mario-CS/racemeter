@@ -7,6 +7,7 @@ import { signedG, lateralG, seconds, shortDate } from './format.js';
 import { drawLean, drawGBall, drawSpeedo } from './draw.js';
 
 const $ = (id) => document.getElementById(id);
+const ROLL_RESULT_TIME = 6;     // s que se queda en grande el tiempo de la última recuperación
 
 // Solo se toca el DOM cuando un valor cambia (la pantalla se refresca ~15 veces por segundo).
 const shown = {};
@@ -115,16 +116,22 @@ function renderG(app) {
 
 function renderPerf(app, t) {
   const timer = app.timer, hasFix = app.speed.hasFix(t), kmh = app.speed.v * KMH;
+  const rolling = timer.state === 'run' ? [] : timer.activeRolls();
+  const lastRoll = timer.lastRoll && t - timer.lastRoll.t < ROLL_RESULT_TIME ? timer.lastRoll : null;
   let cls = 'perfstate', label;
   if (!hasFix) label = 'ESPERANDO GPS…';
   else if (timer.state === 'armed') { cls += ' armed'; label = 'LISTO · ACELERA CUANDO QUIERAS'; }
   else if (timer.state === 'run') { cls += ' run'; label = 'MIDIENDO…'; }
-  else label = kmh >= 2 ? 'DETENTE PARA ARMAR EL CRONO' : 'ESPERANDO…';
+  else if (rolling.length) { cls += ' run'; label = 'MIDIENDO ' + rolling.map((r) => r.key).join(' · '); }
+  else if (lastRoll) label = lastRoll.key + ' KM/H';
+  else label = kmh >= 2 ? 'EN MARCHA · ACELERA PARA MEDIR' : 'ESPERANDO…';
   setClass($('perfState'), cls);
   text('perfState', label);
 
   if (timer.state === 'run') { text('perfTimer', (t - timer.t0).toFixed(2)); text('perfDist', Math.round(timer.d).toString()); }
   else if (timer.state === 'armed') { text('perfTimer', '0.00'); text('perfDist', '0'); }
+  else if (rolling.length) text('perfTimer', (t - rolling[0].tA).toFixed(2));
+  else if (lastRoll) text('perfTimer', lastRoll.time.toFixed(2));
   else { const r = timer.last; text('perfTimer', r && r.spd['0-100'] != null ? r.spd['0-100'].toFixed(2) : '0.00'); }
   const flash = t - timer.lastSplitT < 1.8;
   $('perfTimer').classList.toggle('flash', flash);
