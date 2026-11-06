@@ -20,7 +20,10 @@
     <span id="bikeName">Mi moto</span>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b95a7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
   </button>
-  <button class="status bad" id="status" data-act="goSettings"><span class="rec" id="recDot" hidden></span><span id="statusT">INICIO</span><span>···</span></button>
+  <div class="hdr-r">
+    <button class="gps-chip" id="gpsChip" data-act="goSettings" aria-label="Precisión GPS"><i id="gpsDot"></i><span id="gpsAcc" class="num">GPS</span></button>
+    <button class="status bad" id="status" data-act="goSettings"><span class="rec" id="recDot" hidden></span><span id="statusT">INICIO</span><span>···</span></button>
+  </div>
 </header>
 
 <main>

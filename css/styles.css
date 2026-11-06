@@ -88,7 +88,7 @@ header {
   border-radius: 16px;
   padding: 9px 12px;
   font: 700 16px/1 inherit;
-  max-width: 62%
+  min-width: 0
 }
 
 .bike span {
@@ -101,14 +101,57 @@ header {
   flex: none
 }
 
+.hdr-r {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none
+}
+
+.gps-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 99px;
+  padding: 7px 10px;
+  font: 700 12px/1 inherit;
+  color: var(--txt);
+  background: var(--card);
+  border: 1px solid var(--line)
+}
+
+.gps-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dim)
+}
+
+.gps-chip.good i {
+  background: var(--grn);
+  box-shadow: 0 0 6px var(--grn)
+}
+
+.gps-chip.fair i {
+  background: var(--gold)
+}
+
+.gps-chip.poor i {
+  background: var(--red)
+}
+
+.gps-chip.none {
+  color: var(--mut)
+}
+
 .status {
   display: flex;
   align-items: center;
   gap: 8px;
   border-radius: 99px;
-  padding: 7px 13px;
+  padding: 7px 11px;
   font: 800 12px/1 inherit;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   border: 1.5px solid currentColor;
   background: transparent;
   color: var(--grn)

@@ -31,10 +31,26 @@ function renderStatus(app, t) {
   else if (!app.sensorsReceiving(t)) { cls = 'bad'; label = 'SIN SENSORES'; }
   else if (!app.fusion.calibrated) { cls = 'warn'; label = 'CALIBRAR'; }
   else if (!speed.hasFix(t)) { cls = gps.errCode === 1 ? 'bad' : 'warn'; label = gps.errCode === 1 ? 'GPS DENEGADO' : 'BUSCANDO GPS'; }
-  else if (!speed.isGood(t)) { cls = 'warn'; label = 'GPS ±' + Math.round(speed.accuracy) + ' M'; }
+  else if (!speed.isGood(t)) { cls = 'warn'; label = 'GPS DÉBIL'; }
   setClass($('status'), 'status ' + cls);
   text('statusT', label);
   $('recDot').hidden = !app.recorder.on;
+  renderGpsChip(app, t);
+}
+
+/* Precisión GPS: verde ≤ 10 m, amarillo < 50 m (aún mide tiempos), rojo peor o sin señal. */
+function renderGpsChip(app, t) {
+  const { speed, gps } = app;
+  let cls = 'none', label = 'GPS';
+  if (app.started && speed.hasFix(t) && speed.accuracy != null) {
+    const acc = Math.round(speed.accuracy);
+    label = '±' + acc + ' m';
+    cls = acc <= 10 ? 'good' : speed.isGood(t) ? 'fair' : 'poor';
+  } else if (app.started && gps.errCode === 1) {
+    cls = 'poor'; label = 'GPS ✕';
+  }
+  setClass($('gpsChip'), 'gps-chip ' + cls);
+  text('gpsAcc', label);
 }
 
 /* ---------- pantallas ---------- */
