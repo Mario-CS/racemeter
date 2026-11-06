@@ -1,6 +1,6 @@
 // Service worker: permite abrir la app sin conexión una vez instalada.
 // Al cambiar cualquier archivo, sube la versión para que el iPhone descargue la nueva.
-const CACHE = 'racemeter-v8';
+const CACHE = 'racemeter-v9';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',

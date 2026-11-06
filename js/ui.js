@@ -36,6 +36,7 @@ function renderStatus(app, t) {
   text('statusT', label);
   $('recDot').hidden = !app.recorder.on;
   renderGpsChip(app, t);
+  renderHzChip(app, t);
 }
 
 /* Precisión GPS: verde ≤ 10 m, amarillo < 50 m (aún mide tiempos), rojo peor o sin señal. */
@@ -51,6 +52,18 @@ function renderGpsChip(app, t) {
   }
   setClass($('gpsChip'), 'gps-chip ' + cls);
   text('gpsAcc', label);
+}
+
+/* Lecturas por segundo de los sensores de movimiento: verde ≥ 50 Hz, amarillo ≥ 25 Hz, rojo menos o sin datos. */
+function renderHzChip(app, t) {
+  let cls = 'none', label = 'Hz';
+  if (app.started) {
+    const hz = app.sensorsReceiving(t) ? Math.round(app.sensorHz) : 0;
+    label = hz + ' Hz';
+    cls = hz >= 50 ? 'good' : hz >= 25 ? 'fair' : 'poor';
+  }
+  setClass($('hzChip'), 'gps-chip ' + cls);
+  text('hzVal', label);
 }
 
 /* ---------- pantallas ---------- */

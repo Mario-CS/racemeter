@@ -73,8 +73,8 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 16px 4px;
+  gap: 8px;
+  padding: 10px 14px 4px;
   flex: none
 }
 
@@ -86,7 +86,7 @@ header {
   border: 1px solid var(--line);
   color: var(--txt);
   border-radius: 16px;
-  padding: 9px 12px;
+  padding: 9px 10px;
   font: 700 16px/1 inherit;
   min-width: 0
 }
@@ -104,16 +104,16 @@ header {
 .hdr-r {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex: none
 }
 
 .gps-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border-radius: 99px;
-  padding: 7px 10px;
+  padding: 7px 9px;
   font: 700 12px/1 inherit;
   color: var(--txt);
   background: var(--card);
