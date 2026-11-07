@@ -189,7 +189,11 @@ function historyList(hist) {
     if (run.spd['0-100'] != null) parts.push(`0-100 <b>${run.spd['0-100'].toFixed(2)}</b>`);
     if (run.spd['0-200'] != null) parts.push(`0-200 <b>${run.spd['0-200'].toFixed(2)}</b>`);
     if (run.dst['402 m']) parts.push(`402 m <b>${run.dst['402 m'].t.toFixed(2)}</b>`);
-    if (!parts.length) parts.push(`máx ${Math.round(run.peak)} km/h`);
+    if (!parts.length) {         // salida que no llegó a 100 km/h: lo que sí se midió
+      if (run.spd['0-50'] != null) parts.push(`0-50 <b>${run.spd['0-50'].toFixed(2)}</b>`);
+      if (run.dst['100 m']) parts.push(`100 m <b>${run.dst['100 m'].t.toFixed(2)}</b>`);
+      parts.push(`máx ${Math.round(run.peak)} km/h`);
+    }
     h += `<div><span style="color:var(--mut)">${shortDate(run.date)}${run.demo ? '<span class="tag">DEMO</span>' : ''}</span><span>${parts.join(' · ')}</span></div>`;
   }
   return h || '<div><span style="color:var(--mut)">Aún no hay tiempos</span></div>';
@@ -222,7 +226,7 @@ export function renderDiagnostics(app, t) {
     : 'sin posición';
   $('diag').innerHTML = [
     `Sensores: ${app.sensorsReceiving(t) ? Math.round(app.sensorHz) + ' Hz' : 'sin datos'} · calibrado: ${fusion.calibrated ? 'sí' : 'no'}${fusion.cal && fusion.cal.fwdraw ? ' (+dirección)' : ''}`,
-    `GPS: ${gpsLine}` + (gps.err ? `<br><span style="color:#ff8a96">${gps.err}</span>` : ''),
+    `GPS: ${gpsLine}${speed.rejected ? ` · ${speed.rejected} puntos erróneos descartados` : ''}${gps.restarts ? ` · reiniciado ${gps.restarts} ${gps.restarts === 1 ? 'vez' : 'veces'}` : ''}` + (gps.err ? `<br><span style="color:#ff8a96">${gps.err}</span>` : ''),
     `Acelerómetro ${sg.acc > 0 ? '+' : '−'} (${sg.accConf}) · Giroscopio ${GYRO_MAP_NAMES[sg.gmap]} ${sg.gsign > 0 ? '+' : '−'} (${sg.gn}${sg.gdone ? ' ✔' : ''})`,
     `HTTPS: ${window.isSecureContext ? 'sí' : 'NO'} · versión: ${app.version || '—'}`,
   ].join('<br>');

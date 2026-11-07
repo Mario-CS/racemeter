@@ -11,6 +11,9 @@ const MAX_LATENCY = 1.5;        // s
 const HISTORY_SECONDS = 3;
 const STOP_SPEED = 0.3;         // m/s: GPS por debajo de esto + sin aceleración → parado
 const STOP_MAX_G = 0.04;
+export const MAX_SPEED = 400 / 3.6;   // m/s: más que esto es un error del GPS
+const MAX_GPS_ACCEL = 2 * G;    // m/s²: ninguna moto gana o pierde velocidad más deprisa
+const CHECK_MAX_GAP = 3;        // s: entre puntos más separados no se comparan ni se calcula velocidad
 
 export class SpeedEstimator {
   constructor() { this.reset(); }
@@ -24,6 +27,7 @@ export class SpeedEstimator {
     this.dist = 0;           // distancia recorrida (m)
     this.hist = [];          // [t, v] para compensar el retraso del GPS
     this.prev = null;        // punto GPS anterior
+    this.rejected = 0;       // puntos descartados por imposibles
   }
 
   hasFix(t) { return t - this.fixT < FIX_MAX_AGE; }
@@ -57,16 +61,20 @@ export class SpeedEstimator {
    * @returns {null|{dt:number, aG:number}}  si no hay acelerómetro, datos para cronometrar solo con GPS
    */
   correct(coords, timestamp, t, nowMs, sensorsLive, smoothedLonG = 0) {
+    const gap = this.prev ? (timestamp - this.prev.ts) / 1000 : Infinity;
     let sp = coords.speed;
     if (sp == null || !(sp >= 0)) {
-      // El iPhone no siempre da velocidad: se calcula con la distancia si supera el error de posición.
+      // El iPhone no siempre da velocidad: se calcula con la distancia si supera el error de posición
+      // (solo con puntos seguidos y precisos: al recuperar la señal la posición puede saltar kilómetros).
       sp = 0;
-      if (this.prev) {
+      if (gap > 0 && gap <= CHECK_MAX_GAP && coords.accuracy < GOOD_ACCURACY) {
         const d = haversine(this.prev.lat, this.prev.lon, coords.latitude, coords.longitude);
-        const dtf = (timestamp - this.prev.ts) / 1000;
-        if (dtf > 0 && d > (coords.accuracy || 10)) sp = d / dtf;
+        if (d > (coords.accuracy || 10)) sp = d / gap;
       }
     }
+    // Descarta puntos imposibles: velocidades absurdas o cambios bruscos que ninguna moto puede hacer.
+    const jump = this.vGps != null && gap > 0 && gap <= CHECK_MAX_GAP && Math.abs(sp - this.vGps) / gap > MAX_GPS_ACCEL;
+    if (sp > MAX_SPEED || jump) { this.rejected++; return null; }
     const wasGood = this.isGood(t);
     this.vGps = sp; this.accuracy = coords.accuracy;
     this.lat = coords.latitude; this.lon = coords.longitude;

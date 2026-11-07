@@ -1,9 +1,9 @@
 // Punto de entrada: conecta sensores, GPS, cálculos y pantallas.
 
-import { G, D2R, scale } from './util.js';
+import { G, D2R, KMH, scale } from './util.js';
 import { storage } from './storage.js';
 import { MotionFusion, defaultSigns } from './fusion.js';
-import { SpeedEstimator } from './speed.js';
+import { SpeedEstimator, MAX_SPEED } from './speed.js';
 import { PerfTimer, parseInterval } from './timing.js';
 import { emptyMaxima } from './stats.js';
 import { createSession, processSample, processGpsFix, sensorsLive } from './session.js';
@@ -15,6 +15,8 @@ import { toast, beep as rawBeep, unlockAudio, keepScreenOn, requestMotionPermiss
 const now = () => performance.now() / 1000;
 const TEXT_REFRESH = 0.07;       // s entre refrescos de los números
 const SAVE_EVERY = 3;            // s entre guardados de máximos
+const GPS_STALL = 8;             // s sin puntos GPS (habiéndolos tenido) → se reinicia el GPS
+const GPS_RESTART_EVERY = 15;    // s mínimos entre reinicios
 
 /* ======================= estado ======================= */
 
@@ -45,11 +47,12 @@ const app = Object.assign(
     demo: false,
     view: 'track',
     settings,
-    gps: { watch: null, err: null, errCode: null },
+    gps: { watch: null, err: null, errCode: null, lastFixT: null, restartT: 0, restarts: 0 },
     sensorsReceiving(t) { return t - this.lastMotion < 1; },
     sensorsLive(t) { return sensorsLive(this, t); },
   },
 );
+if (!(app.maxima.spd <= MAX_SPEED * KMH)) app.maxima.spd = 0;   // limpia velocidades imposibles guardadas por versiones anteriores
 if (location.search.includes('debug')) window.__rm = app;   // para depurar desde la consola
 
 const beep = (f, d) => { if (settings.sound) rawBeep(f, d); };
@@ -116,6 +119,7 @@ function startGps() {
   gps.watch = navigator.geolocation.watchPosition(
     (p) => {
       gps.err = null;
+      gps.lastFixT = now();
       if (!app.demo) processGpsFix(app, p.coords, p.timestamp, now(), Date.now());
     },
     (err) => {
@@ -131,6 +135,20 @@ function startGps() {
 
 function stopGps() {
   if (app.gps.watch != null) { navigator.geolocation.clearWatch(app.gps.watch); app.gps.watch = null; }
+}
+
+// En el iPhone el GPS de una web a veces se queda colgado (sobre todo al volver de otra app o
+// tras perder la señal) y no vuelve solo: si deja de llegar, se vuelve a pedir.
+function restartGps() {
+  const gps = app.gps;
+  gps.restartT = now(); gps.restarts++;
+  stopGps(); startGps();
+}
+
+function gpsWatchdog(t) {
+  const gps = app.gps;
+  if (!app.started || app.demo || gps.watch == null || document.visibilityState !== 'visible') return;
+  if (gps.lastFixT != null && t - gps.lastFixT > GPS_STALL && t - gps.restartT > GPS_RESTART_EVERY) restartGps();
 }
 
 /* ======================= cronómetros ======================= */
@@ -293,7 +311,11 @@ function bindUi() {
   });
   document.getElementById('btnStart').addEventListener('click', () => begin(false));
   document.getElementById('btnDemo').addEventListener('click', () => begin(true));
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && app.started) keepScreenOn(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !app.started) return;
+    keepScreenOn();
+    if (!app.demo && app.gps.errCode !== 1) restartGps();
+  });
 }
 
 /* ======================= arranque ======================= */
@@ -328,6 +350,7 @@ function frame() {
     lastSave = t;
     if (!app.demo) storage.set('max', app.maxima);
     if (app.view === 'set') ui.renderDiagnostics(app, t);
+    gpsWatchdog(t);
   }
 }
 
