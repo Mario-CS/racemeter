@@ -126,3 +126,28 @@ test('una recuperación no cuenta el rato a velocidad constante', () => {
   });
   assert.ok(!events.some((e) => e.type === 'roll' && e.key === '60-100'), 'el 60-100 debería anularse');
 });
+
+test('tras salir de un semáforo, la salida parada termina al dejar de acelerar y no tapa el 50-150', () => {
+  const { session, events, axes } = calibratedSession();
+  session.timer.setCustomIntervals([[50, 150]]);
+  // sale de parado hasta 55, rueda, baja a 45 sin pararse y hace el 50-150 a 5 m/s²
+  const hist = runStraight(session, axes, 40, (t, v) => {
+    if (t < 2) return 0;
+    if (t < 6) return v < kmh(55) ? 4 : 0;
+    if (t < 14) return t > 10 && v > kmh(45) ? -1.5 : 0;
+    return v < kmh(160) ? 5 : 0;
+  });
+  const run = events.findIndex((e) => e.type === 'run'), roll = events.findIndex((e) => e.key === '50-150');
+  assert.ok(roll >= 0, 'debería medirse el 50-150');
+  assert.ok(run >= 0 && run < roll, 'la salida parada debería haber terminado antes (si no, la pantalla muestra su crono)');
+  const accel = hist.filter(([t]) => t > 14), real = timeWhen(accel, kmh(150)) - timeWhen(accel, kmh(50));
+  assert.ok(Math.abs(events[roll].time - real) < 0.1, `medido ${events[roll].time.toFixed(3)} s vs real ${real.toFixed(3)} s`);
+});
+
+test('los bajones de velocidad de las correcciones del GPS no anulan el 50-150', () => {
+  const { session, events, axes } = calibratedSession();
+  session.timer.setCustomIntervals([[50, 150]]);
+  // GPS con 0,5 s de retraso que el móvil no declara: cada punto baja la velocidad de golpe
+  runStraight(session, axes, 30, (t, v) => (t < 1 ? kmh(45) : t < 4 ? 0 : v < kmh(160) ? 5 : 0), { hiddenLatency: 0.5 });
+  assert.ok(events.some((e) => e.key === '50-150'), 'debería medirse el 50-150');
+});

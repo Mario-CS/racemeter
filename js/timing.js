@@ -23,7 +23,7 @@ const FALSE_START_TIME = 3;     // s
 const FALSE_START_KMH = 6;
 const LIFT_KMH = 15;            // si cae esto por debajo del máximo, la pasada ha terminado
 const MAX_RUN_TIME = 120;       // s
-const ROLL_DROP_KMH = 3;        // si baja esto, se anula la recuperación
+const ROLL_DROP_KMH = 3;        // si baja esto por debajo de la velocidad inicial, se anula
 const ROLL_GAIN_KMH = 1;        // tiene que ganar esto…
 const ROLL_STALL = 2;           // …cada tantos segundos; si no, ha dejado de acelerar y se anula
 const ROLL_TIMEOUT = 60;
@@ -76,7 +76,7 @@ export class PerfTimer {
   resetState() {
     this.state = 'wait';         // 'wait' → 'armed' → 'run'
     this.stillSince = null; this.calmT = 0; this.launchCount = 0; this.creepSince = null;
-    this.t0 = 0; this.d = 0; this.peak = 0; this.res = null;
+    this.t0 = 0; this.d = 0; this.peak = 0; this.res = null; this.ref = 0; this.refT = 0;
     this.pk = null; this.pt = null;                // km/h y t de la muestra anterior
     this.lastSplitT = -99;
     this.lastRoll = null;                          // {key, time, t} de la última recuperación medida
@@ -161,7 +161,7 @@ export class PerfTimer {
       let t0;
       if (highRate) t0 = t - this.calmT < CALM_LOOKBACK ? this.calmT : crossingTime(pt, pk, t, k, 1);
       else t0 = Math.max(pt - 1, crossingTime(pt, pk, t, k, 0));
-      this.state = 'run'; this.t0 = t0; this.d = 0; this.peak = k;
+      this.state = 'run'; this.t0 = t0; this.d = 0; this.peak = k; this.ref = k; this.refT = t;
       this.res = { date: Date.now(), spd: {}, dst: {}, peak: k, demo: this.demo || undefined };
     } else if (k >= ARM_MAX_KMH) {
       if (this.creepSince == null) this.creepSince = t;
@@ -173,6 +173,7 @@ export class PerfTimer {
     const elapsed = t - this.t0, d0 = this.d;
     this.d += ((pk + k) / 2 / KMH) * dt;
     this.peak = Math.max(this.peak, k);
+    if (k >= this.ref + ROLL_GAIN_KMH) { this.ref = k; this.refT = t; }
     const r = this.res;
     r.peak = this.peak;
     for (const s of SPEED_TARGETS) {
@@ -196,7 +197,9 @@ export class PerfTimer {
     }
     if (elapsed > FALSE_START_TIME && this.peak < FALSE_START_KMH) { this.state = 'wait'; this.stillSince = null; this.res = null; return; }
     const done = r.spd['0-200'] != null && r.dst['402 m'];
-    if (k < this.peak - LIFT_KMH || elapsed > MAX_RUN_TIME || (k < 1 && elapsed > 2) || done) this._finishRun(t);
+    // Termina al dejar de acelerar: si no, tras salir de un semáforo seguiría "midiendo" y taparía los intervalos lanzados
+    const stalled = t - this.refT > ROLL_STALL;
+    if (k < this.peak - LIFT_KMH || stalled || elapsed > MAX_RUN_TIME || (k < 1 && elapsed > 2) || done) this._finishRun(t);
   }
 
   _finishRun(t) {
@@ -220,14 +223,13 @@ export class PerfTimer {
   _rolling(t, k, pk, pt) {
     for (const [key, r] of Object.entries(this.rolls)) {
       const { a, b } = r;
-      // Empieza al pasar por la velocidad inicial acelerando (no hace falta pararse) y
-      // se anula si deja de acelerar o frena, para no sumar el rato que vaya a ritmo constante.
-      if (!r.on) {
-        if (pk < a && k >= a) Object.assign(r, { on: true, tA: crossingTime(pt, pk, t, k, a), ref: k, refT: t });
-        continue;
-      }
+      // Empieza (o vuelve a empezar) cada vez que pasa por la velocidad inicial acelerando, sin pararse.
+      // Se anula si deja de acelerar (no suma el rato a ritmo constante) o baja de la velocidad inicial.
+      // No se anula por un bajón suelto: las correcciones del GPS bajan la velocidad de golpe unos km/h.
+      if (pk < a && k >= a) { Object.assign(r, { on: true, tA: crossingTime(pt, pk, t, k, a), ref: k, refT: t }); continue; }
+      if (!r.on) continue;
       if (k >= r.ref + ROLL_GAIN_KMH) { r.ref = k; r.refT = t; }
-      if (k < r.ref - ROLL_DROP_KMH || t - r.refT > ROLL_STALL || t - r.tA > ROLL_TIMEOUT) {
+      if (k < a - ROLL_DROP_KMH || t - r.refT > ROLL_STALL || t - r.tA > ROLL_TIMEOUT) {
         r.on = false;
       } else if (pk < b && k >= b) {
         r.on = false;

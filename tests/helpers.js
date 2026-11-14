@@ -36,9 +36,10 @@ export function runCircuit(sim, session, seconds, onStep = () => {}) {
 
 /**
  * Moto en línea recta siguiendo un perfil de aceleración `accelAt(t, v)` (m/s²).
+ * `hiddenLatency`: retraso del GPS que no se refleja en la hora del punto (puede pasar en el iPhone).
  * Devuelve el historial real [t, v, x] para comparar.
  */
-export function runStraight(session, axes, seconds, accelAt, { seed = 7, gpsLatency = 0.3 } = {}) {
+export function runStraight(session, axes, seconds, accelAt, { seed = 7, gpsLatency = 0.3, hiddenLatency = 0 } = {}) {
   const rnd = seededRandom(seed);
   let t = 0, v = 0, x = 0, lastGps = -1;
   const hist = [];
@@ -54,7 +55,7 @@ export function runStraight(session, axes, seconds, accelAt, { seed = 7, gpsLate
     processSample(session, raw, wr, t);
     if (t - lastGps >= 1) {
       lastGps = t;
-      const old = hist.find((h) => h[0] >= t - gpsLatency) || hist[0];
+      const old = hist.find((h) => h[0] >= t - gpsLatency - hiddenLatency) || hist[0];
       const coords = { latitude: 40 + old[2] / 110574, longitude: -3, speed: old[1], accuracy: 4 };
       processGpsFix(session, coords, (t - gpsLatency) * 1000, t, t * 1000);
     }
